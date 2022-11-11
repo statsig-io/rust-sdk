@@ -12,20 +12,20 @@ use crate::statsig_user::StatsigUser;
 use crate::statsig_store::StatsigStore;
 
 pub struct StatsigDriver {
-    secret: String,
+    secret_key: String,
     options: StatsigOptions,
     store: Arc<Mutex<StatsigStore>>,
     evaluator: Arc<Mutex<StatsigEvaluator>>,
 }
 
 impl StatsigDriver {
-    pub fn new(secret: &str, options: StatsigOptions) -> Self {
-        let network = make_arc(StatsigNetwork::new());
+    pub fn new(secret_key: &str, options: StatsigOptions) -> Self {
+        let network = make_arc(StatsigNetwork::new(secret_key, &options));
         let store = make_arc(StatsigStore::new(network.clone()));
         let evaluator = make_arc(StatsigEvaluator::new(store.clone()));
 
         return StatsigDriver {
-            secret: String::from(secret),
+            secret_key: secret_key.to_string(),
             options,
             store,
             evaluator,
@@ -37,7 +37,7 @@ impl StatsigDriver {
     }
 
     pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> bool {
-        self.evaluator.lock().unwrap().check_gate(user, gate_name).await;
-        return false;
+        let spec_eval = self.evaluator.lock().unwrap().check_gate(user, gate_name).await;
+        return spec_eval.bool_value;
     }
 }

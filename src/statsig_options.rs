@@ -1,17 +1,12 @@
 pub struct StatsigOptions {
-    api_override: String,
+    pub api_override: String,
 }
 
 impl StatsigOptions {
-    pub fn new() -> StatsigOptions {
+    pub fn default() -> StatsigOptions {
         StatsigOptions {
-            api_override: String::from("")
+            api_override: "https://statsigapi.net/v1".to_string()
         }
-    }
-
-    pub fn api_override(mut self, api_override: &str) -> StatsigOptions {
-        self.api_override = String::from(api_override);
-        self
     }
 }
 

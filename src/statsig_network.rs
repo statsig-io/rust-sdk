@@ -5,25 +5,29 @@ use std::collections::HashMap;
 use std::fmt::Error;
 use reqwest::Client;
 use http::{HeaderMap};
+use crate::StatsigOptions;
 
 pub struct StatsigNetwork {
     client: Client,
+    secret: String,
+    base_api: String,
 }
 
 impl StatsigNetwork {
-    pub fn new() -> StatsigNetwork {
-        StatsigNetwork { client: Client::new() }
+    pub fn new(secret_key: &str, options: &StatsigOptions) -> Self {
+        StatsigNetwork { client: Client::new(), secret: secret_key.to_string(), base_api: options.api_override.clone() }
     }
 
     pub async fn download_config_specs(&self) -> Result<APIDownloadedConfigs, &str> {
         let mut headers = HeaderMap::new();
-        headers.insert("STATSIG-API-KEY", "secret-xxx".parse().unwrap());
+        headers.insert("STATSIG-API-KEY", self.secret.parse().unwrap());
 
         let mut body = HashMap::new();
         body.insert("lang", "rust");
         body.insert("body", "json");
 
-        let res = match self.client.post("https://statsigapi.net/v1/download_config_specs")
+        let url = format!("{}/download_config_specs", self.base_api);
+        let res = match self.client.post(url)
             .json(&body)
             .headers(headers)
             .send().await.ok() {

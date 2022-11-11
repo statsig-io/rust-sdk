@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex};
-use crate::data_types::{APIConfig, APIDownloadedConfigs};
+use crate::data_types::{APISpec, APIDownloadedConfigs};
 use crate::statsig_network::StatsigNetwork;
 
 pub struct StatsigStore {
@@ -45,15 +45,15 @@ impl StatsigStore {
         self.specs = specs;
     }
     
-    pub fn get_gate(&self, gate_name: &String) -> Option<&APIConfig> {
+    pub fn get_gate(&self, gate_name: &String) -> Option<&APISpec> {
         return self.specs.gates.get(gate_name.as_str());
     }
 }
 
 struct Specs {
-    gates: HashMap<String, APIConfig>,
-    configs: HashMap<String, APIConfig>,
-    layers: HashMap<String, APIConfig>,
+    gates: HashMap<String, APISpec>,
+    configs: HashMap<String, APISpec>,
+    layers: HashMap<String, APISpec>,
 }
 
 impl Specs {

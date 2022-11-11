@@ -5,7 +5,7 @@ use serde_json::{Number, Value};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct APIConfig {
+pub struct APISpec {
     pub name: String,
     #[serde(rename = "type")]
     pub _type: String,
@@ -21,7 +21,7 @@ pub struct APIConfig {
 #[serde(rename_all = "camelCase")]
 pub struct APIRule {
     pub name: String,
-    pub pass_percentage: Number,
+    pub pass_percentage: f64,
     pub return_value: Value,
     pub id: String,
     pub salt: Option<String>,
@@ -35,7 +35,7 @@ pub struct APIRule {
 #[serde(rename_all = "camelCase")]
 pub struct APICondition {
     #[serde(rename = "type")]
-    pub _type: String,
+    pub condition_type: String,
     pub target_value: Option<Value>,
     pub operator: Option<String>,
     pub field: Option<String>,
@@ -45,9 +45,9 @@ pub struct APICondition {
 
 #[derive(Serialize, Deserialize)]
 pub struct APIDownloadedConfigs {
-    pub feature_gates: Vec<APIConfig>,
-    pub dynamic_configs: Vec<APIConfig>,
-    pub layer_configs: Vec<APIConfig>,
+    pub feature_gates: Vec<APISpec>,
+    pub dynamic_configs: Vec<APISpec>,
+    pub layer_configs: Vec<APISpec>,
     pub id_lists: Option<HashMap<String, bool>>,
     pub layers: Option<HashMap<String, Vec<String>>>,
     pub has_updates: bool,
