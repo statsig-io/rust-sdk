@@ -9,6 +9,8 @@ mod statsig_store;
 mod data_types;
 mod statsig_evaluator;
 mod helpers;
+mod country_lookup;
+mod eval_helpers;
 
 use std::borrow::Borrow;
 use std::ops::{Deref, DerefMut};

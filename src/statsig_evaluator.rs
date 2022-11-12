@@ -12,13 +12,16 @@ use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Digest, Sha256};
 use sha2::digest::generic_array::sequence::Split;
+use crate::country_lookup::CountryLookup;
 
 use crate::data_types::{APICondition, APIRule, APISpec};
+use crate::eval_helpers::{compare_numbers, match_string_in_array};
 use crate::statsig_store::StatsigStore;
 use crate::StatsigUser;
 
 pub struct StatsigEvaluator {
     pub spec_store: Arc<Mutex<StatsigStore>>,
+    country_lookup: CountryLookup,
 }
 
 pub struct SpecEval {
@@ -58,7 +61,8 @@ impl SpecEval {
 impl StatsigEvaluator {
     pub fn new(spec_store: Arc<Mutex<StatsigStore>>) -> StatsigEvaluator {
         StatsigEvaluator {
-            spec_store
+            spec_store,
+            country_lookup: CountryLookup::new(),
         }
     }
 
@@ -135,13 +139,18 @@ impl StatsigEvaluator {
 
     fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> SpecEval {
         let condition_type = condition.condition_type.to_lowercase();
-        let value = match condition_type.as_str() {
+        let opt_value = match condition_type.as_str() {
             "public" => return SpecEval::boolean(true),
             "user_field" => user.get_user_value(&condition.field),
             "ip_based" => user.get_user_value(&condition.field).or(self.get_value_from_ip(user, &condition.field)),
             "current_time" => Some(json!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis())),
-            _ => return SpecEval::fetch_from_server()
-        }.unwrap_or(return SpecEval::fetch_from_server() );
+            _ => None
+        };
+
+        let value = match opt_value {
+            Some(v) => v,
+            None => return SpecEval::fetch_from_server()
+        };
 
         let target_value = json!(condition.target_value);
         let operator = match &condition.operator {
@@ -150,8 +159,16 @@ impl StatsigEvaluator {
         };
 
         let result = match operator {
-            "gt" => EvalHelpers::compare_numbers(&value, &target_value,
-                                                 |a, b| a > b),
+            // numerical comparison
+            "gt" | "gte" | "lt" | "lte" =>
+                compare_numbers(&value, &target_value, operator)
+                    .unwrap_or(false),
+
+            // string comparison
+            "str_starts_with_any" | "str_ends_with_any" | "str_contains_any" | "str_contains_none" =>
+                match_string_in_array(&value, &target_value, true, operator)
+                    .unwrap_or(false),
+
             _ => return SpecEval::fetch_from_server(),
         };
         return SpecEval::boolean(result);
@@ -177,17 +194,21 @@ impl StatsigEvaluator {
     }
 
     fn get_value_from_ip(&self, user: &StatsigUser, field: &Option<String>) -> Option<Value> {
-        if field.is_none() || field.unwrap().to_lowercase() != "country" {
+        let unwrapped_field = match field {
+            Some(f) => f.as_str(),
+            _ => return None
+        };
+
+        if unwrapped_field != "country" {
             return None;
         }
-        
-        let ip = user.get_user_value("ip");
-        if ip.is_none() {
-            return None;
-        }
-        
-        
-        
+
+        let ip = match user.get_user_value_with_str(&"ip") {
+            Some(ip) => ip.to_string(),
+            _ => return None
+        };
+
+        let cc = self.country_lookup.lookup(&ip);
         return None;
     }
 }
@@ -215,11 +236,14 @@ impl StatsigUser {
     }
 
     fn get_user_value(&self, field: &Option<String>) -> Option<Value> {
-        if field.is_none() {
-            return None;
+        match field {
+            Some(f) => self.get_user_value_with_str(f),
+            _ => None
         }
+    }
 
-        Some(json!(match field.as_ref().unwrap().to_lowercase().as_str() {
+    fn get_user_value_with_str(&self, field: &str) -> Option<Value> {
+        Some(json!(match field.to_lowercase().as_str() {
             "userid" | "user_id" => self.user_id.clone(),
             "email" => self.email.clone(),
             "ip" => None,
@@ -231,31 +255,5 @@ impl StatsigUser {
             "privateattributes" | "private_attributes" => None,
             _ => None
         }))
-    }
-}
-
-struct EvalHelpers {}
-
-impl EvalHelpers {
-    fn compare_numbers(
-        v1: &Value,
-        v2: &Value,
-        f: fn(f64, f64) -> bool,
-    ) -> bool {
-        let n1 = Self::get_numeric_value(v1);
-        let n2 = Self::get_numeric_value(v2);
-        if n1.is_none() || n2.is_none() {
-            false
-        } else {
-            f(n1.unwrap_or_default(), n2.unwrap_or_default())
-        }
-    }
-
-    fn get_numeric_value(v: &Value) -> Option<f64> {
-        match v {
-            Value::Number(n) => n.as_f64(),
-            Value::String(s) => s.parse().ok(),
-            _ => None,
-        }
     }
 }
