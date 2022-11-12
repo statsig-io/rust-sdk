@@ -4,12 +4,13 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex, RwLock};
 use serde::__private::de::Borrowed;
-use crate::helpers::make_arc;
-use crate::statsig_evaluator::StatsigEvaluator;
-use crate::statsig_network::StatsigNetwork;
-use crate::statsig_options::StatsigOptions;
-use crate::statsig_user::StatsigUser;
-use crate::statsig_store::StatsigStore;
+
+use super::statsig_evaluator::StatsigEvaluator;
+use super::statsig_network::StatsigNetwork;
+use super::statsig_store::StatsigStore;
+use super::helpers::make_arc;
+use super::statsig_options::StatsigOptions;
+use super::statsig_user::StatsigUser;
 
 pub struct StatsigDriver {
     secret_key: String,

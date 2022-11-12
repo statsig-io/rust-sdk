@@ -17,7 +17,7 @@ impl UsizeExt for usize {
 
 impl CountryLookup {
     pub fn new() -> Self {
-        let bytes = include_bytes!("ip_supalite.table");
+        let bytes = include_bytes!("resources/ip_supalite.table");
 
         let mut raw_code_lookup: Vec<String> = vec![];
         let mut country_codes: Vec<String> = vec![];

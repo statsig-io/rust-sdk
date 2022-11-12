@@ -1,11 +1,11 @@
-use crate::data_types::APIDownloadedConfigs;
-
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Error;
 use reqwest::Client;
 use http::{HeaderMap};
-use crate::StatsigOptions;
+
+use super::data_types::APIDownloadedConfigs;
+use super::statsig_options::StatsigOptions;
 
 pub struct StatsigNetwork {
     client: Client,
