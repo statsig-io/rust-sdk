@@ -12,11 +12,11 @@ use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Digest, Sha256};
 use sha2::digest::generic_array::sequence::Split;
-use crate::country_lookup::CountryLookup;
 
-use crate::data_types::{APICondition, APIRule, APISpec};
-use crate::eval_helpers::{compare_numbers, match_string_in_array};
-use crate::statsig_store::StatsigStore;
+use crate::statsig::country_lookup::CountryLookup;
+use crate::statsig::data_types::{APICondition, APIRule, APISpec};
+use crate::statsig::eval_helpers::{compare_numbers, match_string_in_array};
+use crate::statsig::statsig_store::StatsigStore;
 use crate::StatsigUser;
 
 pub struct StatsigEvaluator {

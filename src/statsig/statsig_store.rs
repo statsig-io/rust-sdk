@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex};
-use crate::data_types::{APISpec, APIDownloadedConfigs};
-use crate::statsig_network::StatsigNetwork;
+
+use crate::statsig::data_types::{APIDownloadedConfigs, APISpec};
+use crate::statsig::statsig_network::StatsigNetwork;
 
 pub struct StatsigStore {
     specs: Specs,
