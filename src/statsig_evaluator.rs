@@ -5,6 +5,7 @@ use std::fmt::format;
 use std::mem::size_of;
 use std::iter::Map;
 use std::ops::Deref;
+use std::ptr::null;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex, RwLock};
 use serde_json::{json, Value};
@@ -99,7 +100,7 @@ impl StatsigEvaluator {
             return SpecEval {
                 bool_value: pass,
                 ..SpecEval::default()
-            }
+            };
         }
 
 
@@ -136,9 +137,11 @@ impl StatsigEvaluator {
         let condition_type = condition.condition_type.to_lowercase();
         let value = match condition_type.as_str() {
             "public" => return SpecEval::boolean(true),
-            "current_time" => json!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()),
+            "user_field" => user.get_user_value(&condition.field),
+            "ip_based" => user.get_user_value(&condition.field).or(self.get_value_from_ip(user, &condition.field)),
+            "current_time" => Some(json!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis())),
             _ => return SpecEval::fetch_from_server()
-        };
+        }.unwrap_or(return SpecEval::fetch_from_server() );
 
         let target_value = json!(condition.target_value);
         let operator = match &condition.operator {
@@ -157,21 +160,35 @@ impl StatsigEvaluator {
     fn eval_pass_percentage(&self, user: &StatsigUser, rule: &APIRule, spec_salt: &String) -> bool {
         let rule_salt = rule.salt.as_ref().unwrap_or(&rule.id);
         let unit_id = user.get_unit_id(&rule.id_type).unwrap_or("".to_string());
-        if let Ok(hash) = self.compute_user_hash(format!("{}.{}.{}", spec_salt, rule_salt, unit_id)) {
-            return ((hash % 10000) as f64) < rule.pass_percentage * 100.0;
+        match self.compute_user_hash(format!("{}.{}.{}", spec_salt, rule_salt, unit_id)) {
+            Some(hash) => ((hash % 10000) as f64) < rule.pass_percentage * 100.0,
+            None => false
         }
-        return false;
     }
 
-    fn compute_user_hash(&self, value: String) -> Result<usize, i8> {
+    fn compute_user_hash(&self, value: String) -> Option<usize> {
         let mut sha256 = Sha256::new();
         sha256.update(value.as_str().as_bytes());
         let result = sha256.finalize();
-        let (head, _t) = result.split_at(size_of::<usize>());
-        if let Ok(bytes) = head.try_into() {
-            return Ok(usize::from_be_bytes(bytes));
+        match result.split_at(size_of::<usize>()).0.try_into() {
+            Ok(bytes) => Some(usize::from_be_bytes(bytes)),
+            _ => None
         }
-        return Err(0);
+    }
+
+    fn get_value_from_ip(&self, user: &StatsigUser, field: &Option<String>) -> Option<Value> {
+        if field.is_none() || field.unwrap().to_lowercase() != "country" {
+            return None;
+        }
+        
+        let ip = user.get_user_value("ip");
+        if ip.is_none() {
+            return None;
+        }
+        
+        
+        
+        return None;
     }
 }
 
@@ -195,6 +212,25 @@ impl StatsigUser {
         }
 
         return None;
+    }
+
+    fn get_user_value(&self, field: &Option<String>) -> Option<Value> {
+        if field.is_none() {
+            return None;
+        }
+
+        Some(json!(match field.as_ref().unwrap().to_lowercase().as_str() {
+            "userid" | "user_id" => self.user_id.clone(),
+            "email" => self.email.clone(),
+            "ip" => None,
+            "useragent" | "user_agent" => None,
+            "country" => None,
+            "locale" => None,
+            "appversion" | "app_version" => None,
+            "custom" => None,
+            "privateattributes" | "private_attributes" => None,
+            _ => None
+        }))
     }
 }
 
