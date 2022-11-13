@@ -17,7 +17,7 @@ impl StatsigNetwork {
         StatsigNetwork { client: Client::new(), secret: secret_key.to_string(), base_api: options.api_override.clone() }
     }
 
-    pub async fn download_config_specs(&self) -> Result<APIDownloadedConfigs, &str> {
+    pub async fn download_config_specs(&self) -> Option<APIDownloadedConfigs> {
         let mut headers = HeaderMap::new();
         headers.insert("STATSIG-API-KEY", self.secret.parse().unwrap());
 
@@ -31,17 +31,13 @@ impl StatsigNetwork {
             .headers(headers)
             .send().await.ok() {
             Some(x) => x,
-            None => return Err("Request Failed")
+            None => return None
         };
 
         if res.status() != 200 {
-            return Err("Request Failed");
+            return None;
         }
 
-        match res.json::<APIDownloadedConfigs>()
-            .await.ok() {
-            Some(x) => Ok(x),
-            None => Err("Failed to Parse Response")
-        }
+        res.json::<APIDownloadedConfigs>().await.ok()
     }
 }

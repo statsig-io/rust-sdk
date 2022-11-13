@@ -29,7 +29,7 @@ impl Statsig {
 
         let mut driver = match mutex_guard.deref() {
             Some(_d) => {
-                return Some(StatsigError::singleton_lock_failure());
+                return Some(StatsigError::already_initialized());
             }
             _ => StatsigDriver::new(secret, options)
         };

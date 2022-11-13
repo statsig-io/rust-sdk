@@ -14,12 +14,9 @@ impl StatsigStore {
         StatsigStore { network, specs: Specs::new() }
     }
 
-    pub async fn download_config_specs(&mut self) {
-        let result = self.network.lock().unwrap().download_config_specs().await.ok();
-        match result {
-            Some(x) => self.parse_specs(x),
-            None => print!("No result for download_config_specs")
-        }
+    pub async fn download_config_specs(&mut self) -> Option<()> {
+        let result = self.network.lock().ok()?.download_config_specs().await?;
+        Some(self.parse_specs(result))
     }
 
     fn parse_specs(&mut self, downloaded_configs: APIDownloadedConfigs) {

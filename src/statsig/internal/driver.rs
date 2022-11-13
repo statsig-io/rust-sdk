@@ -29,8 +29,8 @@ impl StatsigDriver {
         };
     }
 
-    pub async fn initialize(&mut self) {
-        self.store.lock().unwrap().download_config_specs().await;
+    pub async fn initialize(&mut self) -> Option<()> {
+        self.store.lock().ok()?.download_config_specs().await
     }
 
     pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> bool {

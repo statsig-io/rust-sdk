@@ -1,3 +1,8 @@
+use serde_json::Value;
+use serde_json::Value::Null;
+
+use crate::StatsigUser;
+
 pub struct CountryLookup {
     country_codes: Vec<String>,
     ip_ranges: Vec<i64>,
@@ -68,7 +73,28 @@ impl CountryLookup {
         }
     }
 
-    pub fn lookup(&self, ip_address: &String) -> Option<String> {
+    pub fn get_value_from_ip(&self, user: &StatsigUser, field: &Option<String>) -> Value {
+        let unwrapped_field = match field {
+            Some(f) => f.as_str(),
+            _ => return Null
+        };
+
+        if unwrapped_field != "country" {
+            return Null;
+        }
+
+        let ip = match &user.ip {
+            Some(ip) => ip,
+            _ => return Null
+        };
+
+        match self.lookup(&ip) {
+            Some(cc) => Value::String(cc),
+            _ => Null
+        }
+    }
+    
+    fn lookup(&self, ip_address: &String) -> Option<String> {
         println!("{}", ip_address.as_bytes()[0] as char);
         let parts: Vec<&str> = ip_address.as_str().split(".").collect();
         if parts.len() != 4 {

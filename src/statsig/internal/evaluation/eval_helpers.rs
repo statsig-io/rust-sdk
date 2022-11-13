@@ -1,4 +1,18 @@
+use std::mem::size_of;
+
 use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+
+pub fn compute_user_hash(value: String) -> Option<usize> {
+    let mut sha256 = Sha256::new();
+    sha256.update(value.as_str().as_bytes());
+    let result = sha256.finalize();
+    match result.split_at(size_of::<usize>()).0.try_into() {
+        Ok(bytes) => Some(usize::from_be_bytes(bytes)),
+        _ => None
+    }
+}
 
 pub fn compare_numbers(left: &Value, right: &Value, op: &str) -> Option<bool> {
     let left_num = left.as_number()?;

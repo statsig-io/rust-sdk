@@ -1,35 +1,32 @@
 use std::collections::HashMap;
-use std::mem::size_of;
 use std::sync::{Arc, Mutex};
-use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde_json::Value::Null;
-use sha2::{Digest, Sha256};
-use uaparser::{Parser, UserAgentParser};
 
-use super::super::store::StatsigStore;
-use super::super::data_types::{APICondition, APIRule, APISpec};
+use serde_json::json;
+use serde_json::Value::Null;
+
+use crate::statsig::internal::evaluation::eval_helpers::compute_user_hash;
+use crate::statsig::internal::evaluation::ua_parser::UserAgentParser;
+use crate::StatsigUser;
+
 use super::country_lookup::CountryLookup;
 use super::eval_helpers::{compare_numbers, match_string_in_array};
 use super::eval_result::EvalResult;
-
-use crate::StatsigUser;
+use super::super::data_types::{APICondition, APIRule, APISpec};
+use super::super::store::StatsigStore;
 
 pub struct StatsigEvaluator {
-    pub spec_store: Arc<Mutex<StatsigStore>>,
+    spec_store: Arc<Mutex<StatsigStore>>,
     country_lookup: CountryLookup,
     ua_parser: UserAgentParser,
 }
 
 impl StatsigEvaluator {
     pub fn new(spec_store: Arc<Mutex<StatsigStore>>) -> StatsigEvaluator {
-        let ua_regex_bytes = include_bytes!("resources/ua_parser_regex.yaml");
-
         StatsigEvaluator {
             spec_store,
             country_lookup: CountryLookup::new(),
-            ua_parser: UserAgentParser::from_bytes(ua_regex_bytes)
-                .expect("UserAgentParser creation failed"),
+            ua_parser: UserAgentParser::new(),
         }
     }
 
@@ -115,11 +112,11 @@ impl StatsigEvaluator {
             "public" => return EvalResult::boolean(true),
             "user_field" => user.get_user_value(&condition.field),
             "ip_based" => match user.get_user_value(&condition.field) {
-                Null => self.get_value_from_ip(user, &condition.field),
+                Null => self.country_lookup.get_value_from_ip(user, &condition.field),
                 v => v
             },
             "ua_based" => match user.get_user_value(&condition.field) {
-                Null => self.get_value_from_user_agent(user, &condition.field),
+                Null => self.ua_parser.get_value_from_user_agent(user, &condition.field),
                 v => v
             },
             "current_time" => json!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()),
@@ -164,136 +161,10 @@ impl StatsigEvaluator {
     fn eval_pass_percentage(&self, user: &StatsigUser, rule: &APIRule, spec_salt: &String) -> bool {
         let rule_salt = rule.salt.as_ref().unwrap_or(&rule.id);
         let unit_id = user.get_unit_id(&rule.id_type).unwrap_or("".to_string());
-        match self.compute_user_hash(format!("{}.{}.{}", spec_salt, rule_salt, unit_id)) {
+        match compute_user_hash(format!("{}.{}.{}", spec_salt, rule_salt, unit_id)) {
             Some(hash) => ((hash % 10000) as f64) < rule.pass_percentage * 100.0,
             None => false
         }
     }
-
-    fn compute_user_hash(&self, value: String) -> Option<usize> {
-        let mut sha256 = Sha256::new();
-        sha256.update(value.as_str().as_bytes());
-        let result = sha256.finalize();
-        match result.split_at(size_of::<usize>()).0.try_into() {
-            Ok(bytes) => Some(usize::from_be_bytes(bytes)),
-            _ => None
-        }
-    }
-
-    fn get_value_from_ip(&self, user: &StatsigUser, field: &Option<String>) -> Value {
-        let unwrapped_field = match field {
-            Some(f) => f.as_str(),
-            _ => return Null
-        };
-
-        if unwrapped_field != "country" {
-            return Null;
-        }
-
-        let ip = match &user.ip {
-            Some(ip) => ip,
-            _ => return Null
-        };
-
-        println!("{}", ip.as_bytes()[0] as char);
-
-        match self.country_lookup.lookup(&ip) {
-            Some(cc) => Value::String(cc),
-            _ => Null
-        }
-    }
-
-    fn get_value_from_user_agent(&self, user: &StatsigUser, field: &Option<String>) -> Value {
-        let field_lowered = match field {
-            Some(f) => f.to_lowercase(),
-            _ => return Null
-        };
-
-        let user_agent = match &user.user_agent {
-            Some(ua) => ua,
-            _ => return Null
-        };
-
-        if user_agent.len() > 1000 {
-            return Null;
-        }
-
-        let parsed = self.ua_parser.parse(user_agent);
-        match field_lowered.as_str() {
-            "os_name" | "osname" => json!(parsed.os.family),
-            "os_version" | "osversion" => {
-                let os = parsed.os;
-                if let (Some(major), Some(minor), Some(patch)) = (os.major, os.minor, os.patch) {
-                    return json!(format!("{}.{}.{}", major, minor, patch));
-                }
-                Null
-            }
-            "browser_name" | "browsername" => json!(parsed.user_agent.family),
-            "browser_version" | "browserversion" => {
-                let ua = parsed.user_agent;
-                if let (Some(major), Some(minor), Some(patch)) = (ua.major, ua.minor, ua.patch) {
-                    return json!(format!("{}.{}.{}", major, minor, patch));
-                }
-                Null
-            }
-            _ => Null
-        }
-    }
 }
 
-impl StatsigUser {
-    fn get_unit_id(&self, id_type: &String) -> Option<String> {
-        if id_type.to_lowercase() == *"userid" {
-            return self.user_id.clone();
-        }
-
-        let custom_ids = match &self.custom_ids {
-            Some(x) => x,
-            None => return None,
-        };
-
-        if let Some(custom_id) = custom_ids.get(id_type) {
-            return Some(custom_id.clone());
-        }
-
-        if let Some(custom_id) = custom_ids.get(id_type.to_lowercase().as_str()) {
-            return Some(custom_id.clone());
-        }
-
-        return None;
-    }
-
-    fn get_user_value(&self, field: &Option<String>) -> Value {
-        let field_lowered = match field {
-            Some(f) => f.to_lowercase(),
-            _ => return Null
-        };
-
-        let str_value = match field_lowered.as_str() {
-            "userid" | "user_id" => &self.user_id,
-            "email" => &self.email,
-            "ip" => &self.ip,
-            "useragent" | "user_agent" => &self.user_agent,
-            "country" => &self.country,
-            "locale" => &self.locale,
-            "appversion" | "app_version" => &self.app_version,
-            _ => &None
-        };
-
-        if let Some(value) = str_value {
-            return json!(value);
-        }
-
-        let dict_value = match field_lowered.as_str() {
-            "custom" => &self.custom,
-            "privateattributes" | "private_attributes" => &self.private_attributes,
-            _ => &None
-        };
-
-        if let Some(value) = dict_value {
-            return json!(value);
-        }
-
-        return Null;
-    }
-}
