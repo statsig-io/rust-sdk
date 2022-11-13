@@ -1,7 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
-use std::ops::Deref;
-use std::rc::Weak;
 use std::sync::{Arc, Mutex};
 
 use super::data_types::{APIDownloadedConfigs, APISpec};

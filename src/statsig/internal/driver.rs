@@ -1,21 +1,16 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::rc::{Rc, Weak};
-use std::sync::{Arc, Mutex, RwLock};
-use serde::__private::de::Borrowed;
+use std::sync::{Arc, Mutex};
 
 use crate::StatsigOptions;
 use crate::StatsigUser;
 
-use super::evaluator::StatsigEvaluator;
+use super::evaluation::evaluator::StatsigEvaluator;
 use super::network::StatsigNetwork;
 use super::store::StatsigStore;
 use super::helpers::make_arc;
 
 pub struct StatsigDriver {
-    secret_key: String,
-    options: StatsigOptions,
+    pub secret_key: String,
+    pub options: StatsigOptions,
     store: Arc<Mutex<StatsigStore>>,
     evaluator: Arc<Mutex<StatsigEvaluator>>,
 }

@@ -1,6 +1,4 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::Error;
 use reqwest::Client;
 use http::{HeaderMap};
 

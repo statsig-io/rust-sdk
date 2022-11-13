@@ -1,10 +1,8 @@
 pub mod driver;
 pub mod helpers;
 
-mod country_lookup;
 mod data_types;
-mod eval_helpers;
-mod evaluator;
+mod evaluation;
 mod network;
 mod store;
 

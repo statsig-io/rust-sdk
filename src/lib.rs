@@ -4,10 +4,7 @@ mod statsig;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
 
-use std::borrow::Borrow;
-use std::error::Error;
-use std::future::Future;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref};
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
 
@@ -16,14 +13,14 @@ use statsig::internal::driver::StatsigDriver;
 use statsig::internal::helpers::make_arc;
 
 lazy_static! {
-    static ref _instance: Arc<Mutex<Option<StatsigDriver>>> = make_arc(None);
+    static ref INSTANCE: Arc<Mutex<Option<StatsigDriver>>> = make_arc(None);
 }
 
 pub struct Statsig {}
 
 impl Statsig {
     pub async fn initialize(secret: &str, options: StatsigOptions) -> Option<StatsigError> {
-        let mut mutex_guard = match _instance.lock().ok() {
+        let mut mutex_guard = match INSTANCE.lock().ok() {
             Some(guard) => guard,
             _ => {
                 return Some(StatsigError::singleton_lock_failure());
@@ -31,7 +28,7 @@ impl Statsig {
         };
 
         let mut driver = match mutex_guard.deref() {
-            Some(d) => {
+            Some(_d) => {
                 return Some(StatsigError::singleton_lock_failure());
             }
             _ => StatsigDriver::new(secret, options)
@@ -50,7 +47,7 @@ impl Statsig {
     }
 
     async fn check_gate_impl(user: &StatsigUser, gate_name: &String) -> Option<bool> {
-        Some(_instance.lock().ok()?.as_mut()?.check_gate(user, gate_name).await)
+        Some(INSTANCE.lock().ok()?.as_mut()?.check_gate(user, gate_name).await)
     }
 }
 

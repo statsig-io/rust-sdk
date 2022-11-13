@@ -1,5 +1,5 @@
 pub struct StatsigError {
-    message: String,
+    pub message: String,
 }
 
 

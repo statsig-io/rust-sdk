@@ -1,24 +1,17 @@
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::mem::size_of;
-use std::iter::Map;
-use std::ops::Deref;
-use std::ptr::null;
-use std::rc::Weak;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::Value::Null;
 use sha2::{Digest, Sha256};
-use sha2::digest::generic_array::sequence::Split;
 use uaparser::{Parser, UserAgentParser};
 
+use super::super::store::StatsigStore;
+use super::super::data_types::{APICondition, APIRule, APISpec};
 use super::country_lookup::CountryLookup;
-use super::data_types::{APICondition, APIRule, APISpec};
 use super::eval_helpers::{compare_numbers, match_string_in_array};
-use super::store::StatsigStore;
+use super::eval_result::EvalResult;
 
 use crate::StatsigUser;
 
@@ -26,40 +19,6 @@ pub struct StatsigEvaluator {
     pub spec_store: Arc<Mutex<StatsigStore>>,
     country_lookup: CountryLookup,
     ua_parser: UserAgentParser,
-}
-
-pub struct SpecEval {
-    pub bool_value: bool,
-    json_value: Option<Map<String, Value>>,
-    rule_id: String,
-    fetch_from_server: bool,
-    exposures: Option<Vec<HashMap<String, String>>>,
-}
-
-impl SpecEval {
-    pub fn fetch_from_server() -> Self {
-        Self {
-            fetch_from_server: true,
-            ..Self::default()
-        }
-    }
-
-    pub fn boolean(bool_value: bool) -> Self {
-        Self {
-            bool_value,
-            ..Self::default()
-        }
-    }
-
-    pub fn default() -> Self {
-        Self {
-            bool_value: false,
-            json_value: None,
-            rule_id: "".to_string(),
-            fetch_from_server: false,
-            exposures: None,
-        }
-    }
 }
 
 impl StatsigEvaluator {
@@ -74,8 +33,8 @@ impl StatsigEvaluator {
         }
     }
 
-    pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> SpecEval {
-        let mut store = self.spec_store.lock().unwrap();
+    pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> EvalResult {
+        let store = self.spec_store.lock().unwrap();
         let gate = store.get_gate(gate_name);
 
         if gate_name == "test_country" {
@@ -84,15 +43,15 @@ impl StatsigEvaluator {
 
         match gate {
             Some(spec) => self.eval_spec(user, spec),
-            None => SpecEval::default()
+            None => EvalResult::default()
         }
     }
 
-    fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> SpecEval {
+    fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
         if !spec.enabled {
-            return SpecEval {
+            return EvalResult {
                 rule_id: "disabled".to_string(),
-                ..SpecEval::default()
+                ..EvalResult::default()
             };
         }
 
@@ -114,17 +73,17 @@ impl StatsigEvaluator {
             }
 
             let pass = self.eval_pass_percentage(user, rule, &spec.salt);
-            return SpecEval {
+            return EvalResult {
                 bool_value: pass,
-                ..SpecEval::default()
+                ..EvalResult::default()
             };
         }
 
 
-        SpecEval::default()
+        EvalResult::default()
     }
 
-    fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> SpecEval {
+    fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
         let mut exposures: Vec<HashMap<String, String>> = vec![];
         let mut pass = true;
 
@@ -143,17 +102,17 @@ impl StatsigEvaluator {
             }
         }
 
-        SpecEval {
+        EvalResult {
             bool_value: pass,
             exposures: Some(exposures),
-            ..SpecEval::default()
+            ..EvalResult::default()
         }
     }
 
-    fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> SpecEval {
+    fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
         let condition_type = condition.condition_type.to_lowercase();
         let maybe_value = match condition_type.as_str() {
-            "public" => return SpecEval::boolean(true),
+            "public" => return EvalResult::boolean(true),
             "user_field" => user.get_user_value(&condition.field),
             "ip_based" => match user.get_user_value(&condition.field) {
                 Null => self.get_value_from_ip(user, &condition.field),
@@ -168,14 +127,14 @@ impl StatsigEvaluator {
         };
 
         let value = match maybe_value {
-            Null => return SpecEval::fetch_from_server(),
+            Null => return EvalResult::fetch_from_server(),
             v => v,
         };
 
         let target_value = json!(condition.target_value);
         let operator = match &condition.operator {
             Some(operator) => operator.as_str(),
-            None => return SpecEval::fetch_from_server()
+            None => return EvalResult::fetch_from_server()
         };
 
         let result = match operator {
@@ -197,9 +156,9 @@ impl StatsigEvaluator {
                 match_string_in_array(&value, &target_value, true, operator)
                     .unwrap_or(false),
 
-            _ => return SpecEval::fetch_from_server(),
+            _ => return EvalResult::fetch_from_server(),
         };
-        return SpecEval::boolean(result);
+        return EvalResult::boolean(result);
     }
 
     fn eval_pass_percentage(&self, user: &StatsigUser, rule: &APIRule, spec_salt: &String) -> bool {

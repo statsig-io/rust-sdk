@@ -36,9 +36,7 @@ impl CountryLookup {
             }
         }
 
-
-        let mut longs = |index: usize| bytes[index] as i64;
-
+        let longs = |index: usize| bytes[index] as i64;
 
         let mut last_end_range = 0_i64;
         while (i + 1) < bytes.len() {
@@ -49,7 +47,7 @@ impl CountryLookup {
             } else if n1 == 242 {
                 let n2 = longs(i.post_inc());
                 let n3 = longs(i.post_inc());
-                count = (n2 | (n3 << 8));
+                count = n2 | (n3 << 8);
             } else if n1 == 243 {
                 let n2 = longs(i.post_inc());
                 let n3 = longs(i.post_inc());
