@@ -4,8 +4,8 @@ use std::ops::Deref;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex};
 
-use crate::statsig::data_types::{APIDownloadedConfigs, APISpec};
-use crate::statsig::statsig_network::StatsigNetwork;
+use super::data_types::{APIDownloadedConfigs, APISpec};
+use super::statsig_network::StatsigNetwork;
 
 pub struct StatsigStore {
     specs: Specs,

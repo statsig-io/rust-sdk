@@ -13,7 +13,6 @@ pub fn compare_numbers(left: &Value, right: &Value, op: &str) -> Option<bool> {
 }
 
 pub fn match_string_in_array(value: &Value, array: &Value, ignore_case: bool, op: &str) -> Option<bool> {
-    println!("{} -- {}", value.to_string(), array.to_string());
     if !value.is_string() {
         return None;
     }
@@ -29,6 +28,7 @@ pub fn match_string_in_array(value: &Value, array: &Value, ignore_case: bool, op
         let right = if ignore_case { curr_str.to_lowercase() } else { curr_str.clone() };
 
         return match op {
+            "any" | "none" | "any_case_sensitive" | "none_case_sensitive" => left == right,
             "str_starts_with_any" => left.starts_with(&right),
             "str_ends_with_any" => left.ends_with(&right),
             "str_contains_any" => left.contains(&right),
@@ -36,6 +36,10 @@ pub fn match_string_in_array(value: &Value, array: &Value, ignore_case: bool, op
             _ => false
         };
     });
+
+    if op == "none" || op == "none_case_sensitive" {
+        return Some(!res);
+    }
 
     Some(res)
 }

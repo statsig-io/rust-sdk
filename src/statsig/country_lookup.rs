@@ -37,7 +37,6 @@ impl CountryLookup {
         }
 
 
-
         let mut longs = |index: usize| bytes[index] as i64;
 
 
@@ -72,7 +71,8 @@ impl CountryLookup {
     }
 
     pub fn lookup(&self, ip_address: &String) -> Option<String> {
-        let parts: Vec<&str> = ip_address.split(".").collect();
+        println!("{}", ip_address.as_bytes()[0] as char);
+        let parts: Vec<&str> = ip_address.as_str().split(".").collect();
         if parts.len() != 4 {
             return None;
         }
