@@ -5,7 +5,7 @@ use std::rc::Weak;
 use std::sync::{Arc, Mutex};
 
 use super::data_types::{APIDownloadedConfigs, APISpec};
-use super::statsig_network::StatsigNetwork;
+use super::network::StatsigNetwork;
 
 pub struct StatsigStore {
     specs: Specs,

@@ -1,11 +1,8 @@
 mod statsig;
 
-// re-export public objects
+// re-export public objects to top level
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
-
-use statsig::statsig_driver::StatsigDriver;
-use statsig::helpers::make_arc;
 
 use std::borrow::Borrow;
 use std::error::Error;
@@ -13,7 +10,10 @@ use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
-use crate::statsig::statsig_error::StatsigError;
+
+use statsig::statsig_error::StatsigError;
+use statsig::internal::driver::StatsigDriver;
+use statsig::internal::helpers::make_arc;
 
 lazy_static! {
     static ref _instance: Arc<Mutex<Option<StatsigDriver>>> = make_arc(None);

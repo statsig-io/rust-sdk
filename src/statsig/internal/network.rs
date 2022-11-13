@@ -4,8 +4,9 @@ use std::fmt::Error;
 use reqwest::Client;
 use http::{HeaderMap};
 
+use crate::StatsigOptions;
+
 use super::data_types::APIDownloadedConfigs;
-use super::statsig_options::StatsigOptions;
 
 pub struct StatsigNetwork {
     client: Client,

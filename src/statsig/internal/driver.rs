@@ -5,12 +5,13 @@ use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex, RwLock};
 use serde::__private::de::Borrowed;
 
-use super::statsig_evaluator::StatsigEvaluator;
-use super::statsig_network::StatsigNetwork;
-use super::statsig_store::StatsigStore;
+use crate::StatsigOptions;
+use crate::StatsigUser;
+
+use super::evaluator::StatsigEvaluator;
+use super::network::StatsigNetwork;
+use super::store::StatsigStore;
 use super::helpers::make_arc;
-use super::statsig_options::StatsigOptions;
-use super::statsig_user::StatsigUser;
 
 pub struct StatsigDriver {
     secret_key: String,

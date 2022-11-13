@@ -18,8 +18,9 @@ use uaparser::{Parser, UserAgentParser};
 use super::country_lookup::CountryLookup;
 use super::data_types::{APICondition, APIRule, APISpec};
 use super::eval_helpers::{compare_numbers, match_string_in_array};
-use super::statsig_store::StatsigStore;
-use super::statsig_user::StatsigUser;
+use super::store::StatsigStore;
+
+use crate::StatsigUser;
 
 pub struct StatsigEvaluator {
     pub spec_store: Arc<Mutex<StatsigStore>>,
