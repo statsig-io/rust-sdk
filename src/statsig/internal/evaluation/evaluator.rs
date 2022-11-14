@@ -2,7 +2,6 @@ use std::borrow::{BorrowMut, Cow};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde::de::Unexpected::Option;
 
 use serde_json::{json, Value};
 use serde_json::Value::{Null};
@@ -18,13 +17,13 @@ use super::super::store::StatsigStore;
 use super::ua_parser::UserAgentParser;
 
 pub struct StatsigEvaluator {
-    spec_store: Arc<Mutex<StatsigStore>>,
+    spec_store: Arc<StatsigStore>,
     country_lookup: CountryLookup,
     ua_parser: UserAgentParser,
 }
 
 impl StatsigEvaluator {
-    pub fn new(spec_store: Arc<Mutex<StatsigStore>>) -> StatsigEvaluator {
+    pub fn new(spec_store: Arc<StatsigStore>) -> StatsigEvaluator {
         StatsigEvaluator {
             spec_store,
             country_lookup: CountryLookup::new(),
@@ -32,21 +31,13 @@ impl StatsigEvaluator {
         }
     }
 
-    pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> EvalResult {
-        let mut gate: Option<APISpec> = None;
-        if let Some(store) = self.spec_store.lock().ok() {
-            if let Some(spec) = store.get_gate(gate_name) {
-                gate = Some(spec.clone());
-            }
-        }
+    pub async fn check_gate<'a>(&self, user: &StatsigUser, gate_name: &String) -> EvalResult {
+        let gate = self.spec_store.get_gate(gate_name).unwrap();
 
-        match gate {
-            Some(spec) => self.eval_spec(user, &spec).await,
-            None => EvalResult::default()
-        }
+        self.eval_spec(user, &gate).await
     }
 
-    async fn eval_spec(&mut self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
+    async fn eval_spec<'a>(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
         if !spec.enabled {
             return EvalResult {
                 rule_id: "disabled".to_string(),
@@ -82,7 +73,7 @@ impl StatsigEvaluator {
         EvalResult::default()
     }
 
-    async fn eval_rule(&mut self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
+    async fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
         let mut exposures: Vec<HashMap<String, String>> = vec![];
         let mut pass = true;
 
@@ -108,7 +99,7 @@ impl StatsigEvaluator {
         }
     }
 
-    async fn eval_condition(&mut self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
+    async fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
         let target_value = json!(condition.target_value);
         let condition_type = condition.condition_type.to_lowercase();
 
@@ -179,7 +170,7 @@ impl StatsigEvaluator {
         }
     }
 
-    async fn eval_gate(&mut self, user: &StatsigUser, target_value: &Value) -> EvalResult {
+    async fn eval_gate(&self, user: &StatsigUser, target_value: &Value) -> EvalResult {
         // let gate_name = value_to_string(target_value)?;
         // let result = self.check_gate(user, &gate_name).await;
 

@@ -11,15 +11,15 @@ use super::helpers::make_arc;
 pub struct StatsigDriver {
     pub secret_key: String,
     pub options: StatsigOptions,
-    store: Arc<Mutex<StatsigStore>>,
-    evaluator: Arc<Mutex<StatsigEvaluator>>,
+    store: Arc<StatsigStore>,
+    evaluator: Arc<StatsigEvaluator>,
 }
 
 impl StatsigDriver {
     pub fn new(secret_key: &str, options: StatsigOptions) -> Self {
-        let network = make_arc(StatsigNetwork::new(secret_key, &options));
-        let store = make_arc(StatsigStore::new(network.clone()));
-        let evaluator = make_arc(StatsigEvaluator::new(store.clone()));
+        let network = Arc::from(StatsigNetwork::new(secret_key, &options));
+        let store = Arc::from(StatsigStore::new(network.clone()));
+        let evaluator = Arc::from(StatsigEvaluator::new(store.clone()));
 
         return StatsigDriver {
             secret_key: secret_key.to_string(),
@@ -29,12 +29,12 @@ impl StatsigDriver {
         };
     }
 
-    pub async fn initialize(&mut self) -> Option<()> {
-        self.store.lock().ok()?.download_config_specs().await
+    pub async fn initialize(&self) -> Option<()> {
+        self.store.download_config_specs().await
     }
 
-    pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> bool {
-        let spec_eval = self.evaluator.lock().unwrap().check_gate(user, gate_name).await;
+    pub async fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> bool {
+        let spec_eval = self.evaluator.check_gate(user, gate_name).await;
         return spec_eval.bool_value;
     }
 }
