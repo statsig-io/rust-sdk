@@ -1,8 +1,10 @@
 mod statsig;
 
+use std::borrow::Borrow;
 // re-export public objects to top level
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
+pub use statsig::statsig_event::StatsigEvent;
 
 use std::ops::{Deref};
 use std::sync::{Arc, Mutex};
@@ -44,7 +46,13 @@ impl Statsig {
         })
     }
 
-    fn use_instance<T>(func: impl Fn(&StatsigDriver) -> Result<T, StatsigError>) -> Result<T, StatsigError> {
+    pub fn log_event(event: StatsigEvent) {
+        Self::use_instance(move |driver| {
+            Ok(driver.log_event(event))
+        });
+    }
+
+    fn use_instance<T>(func: impl FnOnce(&StatsigDriver) -> Result<T, StatsigError>) -> Result<T, StatsigError> {
         if let Some(guard) = INSTANCE.lock().ok() {
             if let Some(driver) = guard.deref() {
                 return func(driver);

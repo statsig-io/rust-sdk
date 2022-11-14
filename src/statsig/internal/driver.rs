@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::StatsigOptions;
+use crate::{StatsigEvent, StatsigOptions};
 use crate::StatsigUser;
 
 use super::evaluation::evaluator::StatsigEvaluator;
@@ -35,5 +35,9 @@ impl StatsigDriver {
     pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> bool {
         let spec_eval = self.evaluator.check_gate(user, gate_name);
         return spec_eval.bool_value;
+    }
+    
+    pub fn log_event(&self, event: StatsigEvent) {
+        
     }
 }
