@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::StatsigOptions;
 use crate::StatsigUser;
@@ -6,7 +6,6 @@ use crate::StatsigUser;
 use super::evaluation::evaluator::StatsigEvaluator;
 use super::network::StatsigNetwork;
 use super::store::StatsigStore;
-use super::helpers::make_arc;
 
 pub struct StatsigDriver {
     pub secret_key: String,

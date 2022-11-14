@@ -1,9 +1,5 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::future::Future;
-use std::sync::{Arc, Mutex, RwLock};
-use crate::statsig::internal::evaluation::evaluator::StatsigEvaluator;
-use crate::StatsigUser;
+use std::sync::{Arc, RwLock};
 
 use super::data_types::{APIDownloadedConfigs, APISpec};
 use super::network::StatsigNetwork;

@@ -10,10 +10,9 @@ use lazy_static::lazy_static;
 
 use statsig::statsig_error::StatsigError;
 use statsig::internal::driver::StatsigDriver;
-use statsig::internal::helpers::make_arc;
 
 lazy_static! {
-    static ref INSTANCE: Arc<Mutex<Option<StatsigDriver>>> = make_arc(None);
+    static ref INSTANCE: Arc<Mutex<Option<StatsigDriver>>> = Arc::from(Mutex::from(None));
 }
 
 pub struct Statsig {}
@@ -27,7 +26,7 @@ impl Statsig {
             }
         };
 
-        let mut driver = match mutex_guard.deref() {
+        let driver = match mutex_guard.deref() {
             Some(_d) => {
                 return Some(StatsigError::already_initialized());
             }

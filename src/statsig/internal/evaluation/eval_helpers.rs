@@ -1,9 +1,9 @@
 use std::cmp::max;
 use std::mem::size_of;
 
-use chrono::{Duration};
+use chrono::Duration;
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::statsig::internal::helpers::UsizeExt;
@@ -116,8 +116,6 @@ pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
     let comparison = || {
         let value_str = value_to_string(value)?;
         let regex_str = value_to_string(regex_value)?;
-
-        // let regex = Regex::new(&format!(r"{}", regex_str)).ok()?;
         let regex = Regex::new(&regex_str).ok()?;
         Some(regex.is_match(&value_str))
     };
