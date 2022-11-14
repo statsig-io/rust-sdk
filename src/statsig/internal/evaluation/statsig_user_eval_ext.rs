@@ -45,16 +45,38 @@ impl StatsigUser {
             return json!(value);
         }
 
-        let dict_value = match field_lowered.as_str() {
-            "custom" => &self.custom,
-            "privateattributes" | "private_attributes" => &self.private_attributes,
-            _ => &None
-        };
+        if let Some(custom) = &self.custom {
+            if let Some(custom_value) = custom.get(field_lowered.as_str()) {
+                return json!(custom_value)
+            }
+        }
 
-        if let Some(value) = dict_value {
-            return json!(value);
+        if let Some(private_attributes) = &self.private_attributes {
+            if let Some(private_value) = private_attributes.get(field_lowered.as_str()) {
+                return json!(private_value)
+            }
         }
 
         return Null;
+    }
+
+    pub fn get_value_from_environment(&self, field: &Option<String>) -> Value {
+        let field_lowered = match field {
+            Some(f) => f.to_lowercase(),
+            _ => return Null
+        };
+
+        let env = match &self.statsig_environment {
+            Some(e) => e,
+            _ => return Null
+        };
+
+        for key in env.keys() {
+            if key.to_lowercase() == field_lowered {
+                return json!(env[key]);
+            }
+        }
+
+        Null
     }
 }

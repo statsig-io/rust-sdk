@@ -1,6 +1,7 @@
 use serde_json::Value;
 use serde_json::Value::Null;
 
+use crate::statsig::internal::helpers::UsizeExt;
 use crate::StatsigUser;
 
 pub struct CountryLookup {
@@ -8,17 +9,6 @@ pub struct CountryLookup {
     ip_ranges: Vec<i64>,
 }
 
-trait UsizeExt {
-    fn post_inc(&mut self) -> Self;
-}
-
-impl UsizeExt for usize {
-    fn post_inc(&mut self) -> Self {
-        let was = self.clone();
-        *self += 1;
-        return was;
-    }
-}
 
 impl CountryLookup {
     pub fn new() -> Self {
@@ -93,9 +83,8 @@ impl CountryLookup {
             _ => Null
         }
     }
-    
+
     fn lookup(&self, ip_address: &String) -> Option<String> {
-        println!("{}", ip_address.as_bytes()[0] as char);
         let parts: Vec<&str> = ip_address.as_str().split(".").collect();
         if parts.len() != 4 {
             return None;

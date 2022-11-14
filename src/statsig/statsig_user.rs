@@ -17,6 +17,8 @@ pub struct StatsigUser {
     pub private_attributes: Option<HashMap<String, String>>,
     #[serde(rename = "customIDs")]
     pub custom_ids: Option<HashMap<String, String>>,
+    
+    pub(crate) statsig_environment: Option<HashMap<String, String>>,
 }
 
 impl StatsigUser {
@@ -46,6 +48,7 @@ impl StatsigUser {
             custom: None,
             private_attributes: None,
             custom_ids: None,
+            statsig_environment: None
         }
     }
 }

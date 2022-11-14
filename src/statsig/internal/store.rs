@@ -34,7 +34,7 @@ impl StatsigStore {
         }
 
         for layer_config in downloaded_configs.layer_configs {
-            specs.configs.insert(layer_config.name.to_string(), layer_config);
+            specs.layers.insert(layer_config.name.to_string(), layer_config);
         }
 
         self.specs = specs;

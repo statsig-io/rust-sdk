@@ -1,19 +1,21 @@
+use std::borrow::{BorrowMut, Cow};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+use serde::de::Unexpected::Option;
 
-use serde_json::json;
-use serde_json::Value::Null;
+use serde_json::{json, Value};
+use serde_json::Value::{Null};
+use crate::statsig::internal::evaluation::eval_helpers::{compare_str_with_regex, compare_time, value_to_string};
 
-use crate::statsig::internal::evaluation::eval_helpers::compute_user_hash;
-use crate::statsig::internal::evaluation::ua_parser::UserAgentParser;
 use crate::StatsigUser;
 
 use super::country_lookup::CountryLookup;
-use super::eval_helpers::{compare_numbers, match_string_in_array};
+use super::eval_helpers::{compare_numbers, compare_strings_in_array, compare_versions, compute_user_hash};
 use super::eval_result::EvalResult;
 use super::super::data_types::{APICondition, APIRule, APISpec};
 use super::super::store::StatsigStore;
+use super::ua_parser::UserAgentParser;
 
 pub struct StatsigEvaluator {
     spec_store: Arc<Mutex<StatsigStore>>,
@@ -31,20 +33,20 @@ impl StatsigEvaluator {
     }
 
     pub async fn check_gate(&mut self, user: &StatsigUser, gate_name: &String) -> EvalResult {
-        let store = self.spec_store.lock().unwrap();
-        let gate = store.get_gate(gate_name);
-
-        if gate_name == "test_country" {
-            println!("foo")
+        let mut gate: Option<APISpec> = None;
+        if let Some(store) = self.spec_store.lock().ok() {
+            if let Some(spec) = store.get_gate(gate_name) {
+                gate = Some(spec.clone());
+            }
         }
 
         match gate {
-            Some(spec) => self.eval_spec(user, spec),
+            Some(spec) => self.eval_spec(user, &spec).await,
             None => EvalResult::default()
         }
     }
 
-    fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
+    async fn eval_spec(&mut self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
         if !spec.enabled {
             return EvalResult {
                 rule_id: "disabled".to_string(),
@@ -55,7 +57,7 @@ impl StatsigEvaluator {
         let mut exposures: Vec<HashMap<String, String>> = vec![];
 
         for rule in spec.rules.iter() {
-            let result = self.eval_rule(user, rule);
+            let result = self.eval_rule(user, rule).await;
 
             if result.fetch_from_server {
                 return result;
@@ -80,12 +82,12 @@ impl StatsigEvaluator {
         EvalResult::default()
     }
 
-    fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
+    async fn eval_rule(&mut self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
         let mut exposures: Vec<HashMap<String, String>> = vec![];
         let mut pass = true;
 
         for condition in rule.conditions.iter() {
-            let result = self.eval_condition(user, condition);
+            let result = self.eval_condition(user, condition).await;
             if result.fetch_from_server {
                 return result;
             }
@@ -106,11 +108,13 @@ impl StatsigEvaluator {
         }
     }
 
-    fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
+    async fn eval_condition(&mut self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
+        let target_value = json!(condition.target_value);
         let condition_type = condition.condition_type.to_lowercase();
-        let maybe_value = match condition_type.as_str() {
+
+        let value = match condition_type.as_str() {
             "public" => return EvalResult::boolean(true),
-            "user_field" => user.get_user_value(&condition.field),
+            "fail_gate" | "pass_gate" => return self.eval_gate(user, &target_value).await,
             "ip_based" => match user.get_user_value(&condition.field) {
                 Null => self.country_lookup.get_value_from_ip(user, &condition.field),
                 v => v
@@ -119,16 +123,17 @@ impl StatsigEvaluator {
                 Null => self.ua_parser.get_value_from_user_agent(user, &condition.field),
                 v => v
             },
-            "current_time" => json!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()),
-            _ => Null
+            "user_field" => user.get_user_value(&condition.field),
+            "environment_field" => user.get_value_from_environment(&condition.field),
+            "current_time" => match SystemTime::now().duration_since(UNIX_EPOCH).ok() {
+                Some(time) => json!(time.as_millis().to_string()),
+                _ => Null
+            },
+            "user_bucket" => json!(self.get_hash_for_user_bucket(user, &condition)),
+            "unit_id" => json!(user.get_unit_id(&condition.id_type)),
+            _ => return EvalResult::fetch_from_server()
         };
 
-        let value = match maybe_value {
-            Null => return EvalResult::fetch_from_server(),
-            v => v,
-        };
-
-        let target_value = json!(condition.target_value);
         let operator = match &condition.operator {
             Some(operator) => operator.as_str(),
             None => return EvalResult::fetch_from_server()
@@ -140,18 +145,25 @@ impl StatsigEvaluator {
                 compare_numbers(&value, &target_value, operator)
                     .unwrap_or(false),
 
-            "any" | "none" =>
-                match_string_in_array(&value, &target_value, true, operator)
+            // version comparison
+            "version_gt" | "version_gte" | "version_lt" | "version_lte" | "version_eq" | "version_neq" =>
+                compare_versions(&value, &target_value, operator)
                     .unwrap_or(false),
 
+            // string/array comparison
+            "any" | "none" | "str_starts_with_any" | "str_ends_with_any" | "str_contains_any" | "str_contains_none" =>
+                compare_strings_in_array(&value, &target_value, operator, true),
             "any_case_sensitive" | "none_case_sensitive" =>
-                match_string_in_array(&value, &target_value, false, operator)
+                compare_strings_in_array(&value, &target_value, operator, false),
+            "str_matches" => compare_str_with_regex(&value, &target_value),
+
+            // time comparison
+            "before" | "after" | "on" =>
+                compare_time(&value, &target_value, operator)
                     .unwrap_or(false),
 
-            // string comparison
-            "str_starts_with_any" | "str_ends_with_any" | "str_contains_any" | "str_contains_none" =>
-                match_string_in_array(&value, &target_value, true, operator)
-                    .unwrap_or(false),
+            "eq" => value == target_value,
+            "neq" => value != target_value,
 
             _ => return EvalResult::fetch_from_server(),
         };
@@ -166,5 +178,27 @@ impl StatsigEvaluator {
             None => false
         }
     }
-}
 
+    async fn eval_gate(&mut self, user: &StatsigUser, target_value: &Value) -> EvalResult {
+        // let gate_name = value_to_string(target_value)?;
+        // let result = self.check_gate(user, &gate_name).await;
+
+        EvalResult::boolean(false)
+    }
+
+    fn get_hash_for_user_bucket(&self, user: &StatsigUser, condition: &APICondition) -> usize {
+        let unit_id = user.get_unit_id(&condition.id_type).unwrap_or("".to_string());
+        let mut salt = "".to_string();
+        if let Some(add_values) = &condition.additional_values {
+            if let Value::String(s) = &add_values["salt"] {
+                salt = s.clone();
+            }
+        }
+
+        let hash = match compute_user_hash(format!("{}.{}", salt, unit_id)) {
+            Some(hash) => hash,
+            _ => 0
+        };
+        hash % 1000
+    }
+}
