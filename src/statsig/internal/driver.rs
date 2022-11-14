@@ -34,7 +34,7 @@ impl StatsigDriver {
     }
 
     pub async fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> bool {
-        let spec_eval = self.evaluator.check_gate(user, gate_name).await;
+        let spec_eval = self.evaluator.check_gate(user, gate_name);
         return spec_eval.bool_value;
     }
 }

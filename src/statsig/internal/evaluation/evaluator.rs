@@ -31,13 +31,22 @@ impl StatsigEvaluator {
         }
     }
 
-    pub async fn check_gate<'a>(&self, user: &StatsigUser, gate_name: &String) -> EvalResult {
-        let gate = self.spec_store.get_gate(gate_name).unwrap();
-
-        self.eval_spec(user, &gate).await
+    pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> EvalResult {
+        self.spec_store.use_gate(gate_name, |gate| {
+            match gate {
+                Some(gate) => self.eval_spec(user, gate),
+                _ => EvalResult::default()
+            }
+        })
+        // let gate = self.spec_store.get_gate(gate_name).unwrap();
+        // self.eval_spec(user, &gate).await
+        // match self.spec_store.get_gate(gate_name) {
+        //     Some(gate) => self.eval_spec(user, &gate).await,
+        //     _ => EvalResult::default()
+        // }
     }
 
-    async fn eval_spec<'a>(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
+    fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
         if !spec.enabled {
             return EvalResult {
                 rule_id: "disabled".to_string(),
@@ -48,7 +57,7 @@ impl StatsigEvaluator {
         let mut exposures: Vec<HashMap<String, String>> = vec![];
 
         for rule in spec.rules.iter() {
-            let result = self.eval_rule(user, rule).await;
+            let result = self.eval_rule(user, rule);
 
             if result.fetch_from_server {
                 return result;
@@ -73,12 +82,12 @@ impl StatsigEvaluator {
         EvalResult::default()
     }
 
-    async fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
+    fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
         let mut exposures: Vec<HashMap<String, String>> = vec![];
         let mut pass = true;
 
         for condition in rule.conditions.iter() {
-            let result = self.eval_condition(user, condition).await;
+            let result = self.eval_condition(user, condition);
             if result.fetch_from_server {
                 return result;
             }
@@ -99,13 +108,13 @@ impl StatsigEvaluator {
         }
     }
 
-    async fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
+    fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
         let target_value = json!(condition.target_value);
         let condition_type = condition.condition_type.to_lowercase();
 
         let value = match condition_type.as_str() {
             "public" => return EvalResult::boolean(true),
-            "fail_gate" | "pass_gate" => return self.eval_gate(user, &target_value).await,
+            "fail_gate" | "pass_gate" => return self.eval_nested_gate(user, &target_value, &condition_type),
             "ip_based" => match user.get_user_value(&condition.field) {
                 Null => self.country_lookup.get_value_from_ip(user, &condition.field),
                 v => v
@@ -170,11 +179,19 @@ impl StatsigEvaluator {
         }
     }
 
-    async fn eval_gate(&self, user: &StatsigUser, target_value: &Value) -> EvalResult {
-        // let gate_name = value_to_string(target_value)?;
-        // let result = self.check_gate(user, &gate_name).await;
+    fn eval_nested_gate(&self, user: &StatsigUser, target_value: &Value, condition_type: &String) -> EvalResult {
+        let gate_name = value_to_string(target_value).unwrap();
+        let result = self.check_gate(user, &gate_name);
 
-        EvalResult::boolean(false)
+        if result.fetch_from_server {
+            return result;
+        }
+
+        if condition_type == "pass_gate" {
+            return result;
+        }
+
+        EvalResult::boolean(!result.bool_value)
     }
 
     fn get_hash_for_user_bucket(&self, user: &StatsigUser, condition: &APICondition) -> usize {

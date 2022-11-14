@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::{Number, Value};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct APISpec {
     pub name: String,
@@ -16,7 +16,7 @@ pub struct APISpec {
     pub explicit_parameters: Option<Vec<String>>
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct APIRule {
     pub name: String,
@@ -30,7 +30,7 @@ pub struct APIRule {
     pub config_delegate: Option<String>
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct APICondition {
     #[serde(rename = "type")]
