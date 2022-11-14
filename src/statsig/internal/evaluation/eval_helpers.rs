@@ -2,6 +2,7 @@ use std::cmp::max;
 use std::mem::size_of;
 
 use chrono::{Duration};
+use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
@@ -84,10 +85,6 @@ pub fn compare_versions(left: &Value, right: &Value, op: &str) -> Option<bool> {
 
 pub fn compare_strings_in_array(value: &Value, array: &Value, op: &str, ignore_case: bool) -> bool {
     let comparison = || {
-        if !value.is_string() {
-            return None;
-        }
-
         let value_str = value_to_string(value)?;
         Some(array.as_array()?.iter().any(|current| {
             let curr_str = match value_to_string(current) {
@@ -101,8 +98,7 @@ pub fn compare_strings_in_array(value: &Value, array: &Value, op: &str, ignore_c
                 "any" | "none" | "any_case_sensitive" | "none_case_sensitive" => left.eq(&right),
                 "str_starts_with_any" => left.starts_with(&right),
                 "str_ends_with_any" => left.ends_with(&right),
-                "str_contains_any" => left.contains(&right),
-                "str_contains_none" => !left.contains(&right),
+                "str_contains_any" | "str_contains_none" => left.contains(&right),
                 _ => false
             }
         }))
@@ -116,17 +112,19 @@ pub fn compare_strings_in_array(value: &Value, array: &Value, op: &str, ignore_c
     res
 }
 
-pub fn compare_str_with_regex(value: &Value, regex: &Value) -> bool {
+pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
     let comparison = || {
         let value_str = value_to_string(value)?;
-        let regex_str = value_to_string(regex)?;
-        
-        Some(false)
+        let regex_str = value_to_string(regex_value)?;
+
+        // let regex = Regex::new(&format!(r"{}", regex_str)).ok()?;
+        let regex = Regex::new(&regex_str).ok()?;
+        Some(regex.is_match(&value_str))
     };
-    
+
 
     comparison().unwrap_or(false)
-} 
+}
 
 pub fn compare_time(left: &Value, right: &Value, op: &str) -> Option<bool> {
     let left_num = value_to_i64(left)?;
@@ -160,7 +158,7 @@ pub fn value_to_i64(value: &Value) -> Option<i64> {
 pub fn value_to_string(value: &Value) -> Option<String> {
     match value {
         Value::String(s) => Some(s.clone()),
-        _ => None
+        _ => Some(format!("{}", value))
     }
 }
 

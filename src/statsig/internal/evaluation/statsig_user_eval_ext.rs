@@ -25,12 +25,12 @@ impl StatsigUser {
     }
 
     pub fn get_user_value(&self, field: &Option<String>) -> Value {
-        let field_lowered = match field {
-            Some(f) => f.to_lowercase(),
+        let field = match field {
+            Some(f) => f,
             _ => return Null
         };
 
-        let str_value = match field_lowered.as_str() {
+        let str_value = match field.to_lowercase().as_str() {
             "userid" | "user_id" => &self.user_id,
             "email" => &self.email,
             "ip" => &self.ip,
@@ -46,14 +46,20 @@ impl StatsigUser {
         }
 
         if let Some(custom) = &self.custom {
-            if let Some(custom_value) = custom.get(field_lowered.as_str()) {
-                return json!(custom_value)
+            if let Some(custom_value) = custom.get(field.as_str()) {
+                return custom_value.clone();
+            }
+            if let Some(custom_value) = custom.get(field.to_uppercase().to_lowercase().as_str()) {
+                return custom_value.clone();
             }
         }
 
         if let Some(private_attributes) = &self.private_attributes {
-            if let Some(private_value) = private_attributes.get(field_lowered.as_str()) {
-                return json!(private_value)
+            if let Some(private_value) = private_attributes.get(field.as_str()) {
+                return private_value.clone();
+            }
+            if let Some(private_value) = private_attributes.get(field.to_uppercase().to_lowercase().as_str()) {
+                return private_value.clone();
             }
         }
 

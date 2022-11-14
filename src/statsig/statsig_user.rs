@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use serde::Deserialize;
+use serde_json::Value;
 
 
 #[derive(Deserialize)]
@@ -13,8 +14,8 @@ pub struct StatsigUser {
     pub country: Option<String>,
     pub locale: Option<String>,
     pub app_version: Option<String>,
-    pub custom: Option<HashMap<String, String>>,
-    pub private_attributes: Option<HashMap<String, String>>,
+    pub custom: Option<HashMap<String, Value>>,
+    pub private_attributes: Option<HashMap<String, Value>>,
     #[serde(rename = "customIDs")]
     pub custom_ids: Option<HashMap<String, String>>,
     

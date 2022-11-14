@@ -38,12 +38,6 @@ impl StatsigEvaluator {
                 _ => EvalResult::default()
             }
         })
-        // let gate = self.spec_store.get_gate(gate_name).unwrap();
-        // self.eval_spec(user, &gate).await
-        // match self.spec_store.get_gate(gate_name) {
-        //     Some(gate) => self.eval_spec(user, &gate).await,
-        //     _ => EvalResult::default()
-        // }
     }
 
     fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
@@ -129,7 +123,10 @@ impl StatsigEvaluator {
                 Some(time) => json!(time.as_millis().to_string()),
                 _ => Null
             },
-            "user_bucket" => json!(self.get_hash_for_user_bucket(user, &condition)),
+            "user_bucket" => match self.get_hash_for_user_bucket(user, &condition) { 
+                Some(hash) => json!(hash),
+                _ => Null
+            },
             "unit_id" => json!(user.get_unit_id(&condition.id_type)),
             _ => return EvalResult::fetch_from_server()
         };
@@ -194,7 +191,7 @@ impl StatsigEvaluator {
         EvalResult::boolean(!result.bool_value)
     }
 
-    fn get_hash_for_user_bucket(&self, user: &StatsigUser, condition: &APICondition) -> usize {
+    fn get_hash_for_user_bucket(&self, user: &StatsigUser, condition: &APICondition) -> Option<usize> {
         let unit_id = user.get_unit_id(&condition.id_type).unwrap_or("".to_string());
         let mut salt = "".to_string();
         if let Some(add_values) = &condition.additional_values {
@@ -203,10 +200,7 @@ impl StatsigEvaluator {
             }
         }
 
-        let hash = match compute_user_hash(format!("{}.{}", salt, unit_id)) {
-            Some(hash) => hash,
-            _ => 0
-        };
-        hash % 1000
+        let hash = compute_user_hash(format!("{}.{}", salt, unit_id))?;
+        Some(hash % 1000)
     }
 }
