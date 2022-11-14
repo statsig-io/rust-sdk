@@ -39,15 +39,19 @@ impl Statsig {
         None
     }
 
-    pub async fn check_gate(user: &StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
-        match Self::check_gate_impl(user, gate_name).await {
-            Some(result) => Ok(result),
-            None => Err(StatsigError::uninitialized())
-        }
+    pub fn check_gate(user: &StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
+        Self::use_instance(|driver| {
+            Ok(driver.check_gate(user, gate_name))
+        })
     }
 
-    async fn check_gate_impl(user: &StatsigUser, gate_name: &String) -> Option<bool> {
-        Some(INSTANCE.lock().ok()?.as_mut()?.check_gate(user, gate_name).await)
+    fn use_instance<T>(func: impl Fn(&StatsigDriver) -> Result<T, StatsigError>) -> Result<T, StatsigError> {
+        if let Some(guard) = INSTANCE.lock().ok() {
+            if let Some(driver) = guard.deref() {
+                return func(driver);
+            }
+        }
+        Err(StatsigError::uninitialized())
     }
 }
 
