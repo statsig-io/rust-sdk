@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use super::data_types::{APIDownloadedConfigs, APISpec};
-use super::network::StatsigNetwork;
+use super::statsig_network::StatsigNetwork;
 
 pub struct StatsigStore {
     specs: RwLock<Specs>,

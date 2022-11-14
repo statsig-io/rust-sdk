@@ -1,4 +1,4 @@
-pub mod evaluator;
+pub mod statsig_evaluator;
 
 mod country_lookup;
 mod eval_helpers;

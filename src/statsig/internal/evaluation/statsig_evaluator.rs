@@ -12,7 +12,7 @@ use super::country_lookup::CountryLookup;
 use super::eval_helpers::{compare_numbers, compare_strings_in_array, compare_versions, compute_user_hash};
 use super::eval_result::EvalResult;
 use super::super::data_types::{APICondition, APIRule, APISpec};
-use super::super::store::StatsigStore;
+use super::super::statsig_store::StatsigStore;
 use super::ua_parser::UserAgentParser;
 
 pub struct StatsigEvaluator {
