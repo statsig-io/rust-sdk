@@ -42,6 +42,7 @@ impl StatsigEvaluator {
     fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
         if !spec.enabled {
             return EvalResult {
+                json_value: Some(spec.default_value.clone()),
                 rule_id: "disabled".to_string(),
                 ..EvalResult::default()
             };
@@ -67,12 +68,22 @@ impl StatsigEvaluator {
             let pass = self.eval_pass_percentage(user, rule, &spec.salt);
             return EvalResult {
                 bool_value: pass,
+                json_value: match pass {
+                    true => result.json_value,
+                    false => Some(spec.default_value.clone())
+                },
+                rule_id: result.rule_id,
+                exposures: Some(exposures),
                 ..EvalResult::default()
             };
         }
 
-
-        EvalResult::default()
+        EvalResult {
+            json_value: Some(spec.default_value.clone()),
+            rule_id: "default".to_string(),
+            exposures: Some(exposures),
+            ..EvalResult::default()
+        }
     }
 
     fn eval_rule(&self, user: &StatsigUser, rule: &APIRule) -> EvalResult {
@@ -96,6 +107,8 @@ impl StatsigEvaluator {
 
         EvalResult {
             bool_value: pass,
+            json_value: Some(rule.return_value.clone()),
+            rule_id: rule.id.clone(),
             exposures: Some(exposures),
             ..EvalResult::default()
         }
@@ -122,7 +135,7 @@ impl StatsigEvaluator {
                 Some(time) => json!(time.as_millis().to_string()),
                 _ => Null
             },
-            "user_bucket" => match self.get_hash_for_user_bucket(user, &condition) { 
+            "user_bucket" => match self.get_hash_for_user_bucket(user, &condition) {
                 Some(hash) => json!(hash),
                 _ => Null
             },
@@ -183,11 +196,28 @@ impl StatsigEvaluator {
             return result;
         }
 
-        if condition_type == "pass_gate" {
-            return result;
+        let mut gate_value = result.bool_value;
+        let exposure = HashMap::from([
+            ("gate".to_string(), gate_name),
+            ("gateValue".to_string(), gate_value.to_string()),
+            ("ruleID".to_string(), result.rule_id)
+        ]);
+        
+        if condition_type == "fail_gate" {
+            gate_value = !gate_value;
         }
 
-        EvalResult::boolean(!result.bool_value)
+        let mut exposures = match result.exposures {
+            Some(v) => v,
+            None => vec![]
+        };
+        
+        exposures.push(exposure);
+        
+        EvalResult{
+            exposures: Some(exposures),
+            ..EvalResult::boolean(gate_value)
+        }
     }
 
     fn get_hash_for_user_bucket(&self, user: &StatsigUser, condition: &APICondition) -> Option<usize> {

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::{StatsigEvent, StatsigOptions};
-use crate::statsig::internal::statsig_logger::StatsigLogger;
-use crate::statsig::statsig_event::StatsigEventInternal;
 use crate::StatsigUser;
 
-use super::evaluation::statsig_evaluator::StatsigEvaluator;
+use super::evaluation::StatsigEvaluator;
+use super::statsig_event_internal::{finalize_event, make_gate_exposure};
+use super::statsig_logger::StatsigLogger;
 use super::statsig_network::StatsigNetwork;
 use super::statsig_store::StatsigStore;
 
@@ -41,19 +41,18 @@ impl StatsigDriver {
         self.logger.flush().await;
     }
 
-    pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> bool {
-        let spec_eval = self.evaluator.check_gate(user, gate_name);
-        return spec_eval.bool_value;
+    pub fn check_gate(&self, user: StatsigUser, gate_name: &String) -> bool {
+        let eval_result = self.evaluator.check_gate(&user, gate_name);
+        self.logger.enqueue(make_gate_exposure(
+            user, gate_name, &eval_result, &self.options.environment,
+        ));
+        return eval_result.bool_value;
     }
 
-    pub fn log_event(&self, mut event: StatsigEvent) {
-        self.logger.enqueue(StatsigEventInternal::from(
+    pub fn log_event(&self, event: StatsigEvent) {
+        self.logger.enqueue(finalize_event(
             event,
             &self.options.environment,
         ))
-    }
-
-    fn foo(&self, mut user: StatsigUser) {
-        user.statsig_environment = None;
     }
 }

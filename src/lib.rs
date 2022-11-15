@@ -1,9 +1,11 @@
+extern crate core;
+
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use lazy_static::lazy_static;
 
-use statsig::internal::statsig_driver::StatsigDriver;
+use statsig::internal::StatsigDriver;
 use statsig::statsig_error::StatsigError;
 //
 // re-export public objects to top level
@@ -41,7 +43,7 @@ impl Statsig {
     }
 
     pub async fn shutdown() -> Option<StatsigError> {
-        let mut guard = match INSTANCE.write().ok() {
+        let guard = match INSTANCE.write().ok() {
             Some(guard) => guard,
             _ => {
                 return Some(StatsigError::singleton_lock_failure());
@@ -54,11 +56,11 @@ impl Statsig {
         };
 
         driver.shutdown().await;
-        
+
         None
     }
 
-    pub fn check_gate(user: &StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
+    pub fn check_gate(user: StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
         Self::use_instance(|driver| {
             Ok(driver.check_gate(user, gate_name))
         })

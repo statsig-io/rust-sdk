@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use http::{HeaderMap};
-use reqwest::{Client, Response, Error};
+use http::HeaderMap;
+use reqwest::{Client, Error, Response};
 use serde_json::{json, Value};
-use crate::{StatsigEvent, StatsigOptions};
-use crate::statsig::statsig_event::StatsigEventInternal;
+use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
+
+use crate::StatsigOptions;
 
 use super::data_types::APIDownloadedConfigs;
 

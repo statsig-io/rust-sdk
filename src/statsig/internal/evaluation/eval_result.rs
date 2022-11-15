@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::iter::Map;
 use serde_json::Value;
 
 pub struct EvalResult {
     pub bool_value: bool,
-    pub json_value: Option<Map<String, Value>>,
+    pub json_value: Option<Value>,
     pub rule_id: String,
     pub fetch_from_server: bool,
     pub exposures: Option<Vec<HashMap<String, String>>>,
