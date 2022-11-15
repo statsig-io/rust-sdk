@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{StatsigEvent, StatsigOptions};
 use crate::statsig::internal::statsig_logger::StatsigLogger;
+use crate::statsig::statsig_event::StatsigEventInternal;
 use crate::StatsigUser;
 
 use super::evaluation::statsig_evaluator::StatsigEvaluator;
@@ -45,7 +46,14 @@ impl StatsigDriver {
         return spec_eval.bool_value;
     }
 
-    pub fn log_event(&self, event: StatsigEvent) {
-        self.logger.enqueue(event)
+    pub fn log_event(&self, mut event: StatsigEvent) {
+        self.logger.enqueue(StatsigEventInternal::from(
+            event,
+            &self.options.environment,
+        ))
+    }
+
+    fn foo(&self, mut user: StatsigUser) {
+        user.statsig_environment = None;
     }
 }

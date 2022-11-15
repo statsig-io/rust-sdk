@@ -24,11 +24,16 @@ pub struct StatsigEventInternal {
 }
 
 impl StatsigEventInternal {
-    pub fn from_event(event: StatsigEvent) -> Self {
+    pub fn from(mut event: StatsigEvent, statsig_environment: &Option<HashMap<String, String>>) -> Self {
+        if let Some(env) = statsig_environment {
+            event.user.statsig_environment = Some(env.clone());
+        }
+        event.user.private_attributes = None;
+
         Self {
             event_data: event,
             time: 1,
-            secondary_exposures: vec![]
+            secondary_exposures: vec![],
         }
     }
 }

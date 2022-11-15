@@ -39,20 +39,16 @@ impl StatsigLogger {
         }));
     }
 
-    pub fn enqueue(&self, event: StatsigEvent) {
-        self.enqueue_internal(StatsigEventInternal::from_event(event));
+    pub fn enqueue(&self, event: StatsigEventInternal) {
+        if let Some(mut mut_events) = self.events.write().ok() {
+            mut_events.push(event);
+        };
     }
 
     pub async fn flush(&self) {
         Self::flush_impl(&self.network, &self.events).await;
     }
     
-    fn enqueue_internal(&self, event: StatsigEventInternal) {
-        if let Some(mut mut_events) = self.events.write().ok() {
-            mut_events.push(event);
-        };
-    }
-
     async fn flush_impl(network: &StatsigNetwork, events: &RwLock<Vec<StatsigEventInternal>>) {
         let count = match events.read().ok() {
             Some(e) => e.len(),
