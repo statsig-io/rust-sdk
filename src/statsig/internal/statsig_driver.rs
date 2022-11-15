@@ -36,6 +36,10 @@ impl StatsigDriver {
         self.store.download_config_specs().await
     }
 
+    pub async fn shutdown(&self) {
+        self.logger.flush().await;
+    }
+
     pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> bool {
         let spec_eval = self.evaluator.check_gate(user, gate_name);
         return spec_eval.bool_value;

@@ -1,41 +1,60 @@
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use lazy_static::lazy_static;
 
 use statsig::internal::statsig_driver::StatsigDriver;
 use statsig::statsig_error::StatsigError;
-pub use statsig::statsig_event::StatsigEvent;
+//
 // re-export public objects to top level
+pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
 
 mod statsig;
 
 lazy_static! {
-    static ref INSTANCE: Arc<Mutex<Option<StatsigDriver>>> = Arc::from(Mutex::from(None));
+    static ref INSTANCE: Arc<RwLock<Option<StatsigDriver>>> = Arc::from(RwLock::from(None));
 }
 
 pub struct Statsig {}
 
 impl Statsig {
     pub async fn initialize(secret: &str, options: StatsigOptions) -> Option<StatsigError> {
-        let mut mutex_guard = match INSTANCE.lock().ok() {
+        let mut guard = match INSTANCE.write().ok() {
             Some(guard) => guard,
             _ => {
                 return Some(StatsigError::singleton_lock_failure());
             }
         };
 
-        let driver = match mutex_guard.deref() {
+        let driver = match guard.deref() {
             Some(_d) => {
                 return Some(StatsigError::already_initialized());
             }
             _ => StatsigDriver::new(secret, options)
         };
         driver.initialize().await;
-        *mutex_guard = Some(driver);
+        *guard = Some(driver);
 
+        None
+    }
+
+    pub async fn shutdown() -> Option<StatsigError> {
+        let mut guard = match INSTANCE.write().ok() {
+            Some(guard) => guard,
+            _ => {
+                return Some(StatsigError::singleton_lock_failure());
+            }
+        };
+
+        let driver = match guard.deref() {
+            Some(d) => d,
+            _ => return None
+        };
+
+        driver.shutdown().await;
+        
         None
     }
 
@@ -49,20 +68,21 @@ impl Statsig {
         let res = Self::use_instance(move |driver| {
             Ok(driver.log_event(event))
         });
-        
-        match res { 
+
+        match res {
             Err(e) => Some(e),
             _ => None
         }
     }
 
     fn use_instance<T>(func: impl FnOnce(&StatsigDriver) -> Result<T, StatsigError>) -> Result<T, StatsigError> {
-        if let Some(guard) = INSTANCE.lock().ok() {
+        if let Some(guard) = INSTANCE.read().ok() {
             if let Some(driver) = guard.deref() {
                 return func(driver);
             }
+            return Err(StatsigError::uninitialized());
         }
-        Err(StatsigError::uninitialized())
+        Err(StatsigError::singleton_lock_failure())
     }
 }
 

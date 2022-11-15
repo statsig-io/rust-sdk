@@ -1,12 +1,15 @@
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::JoinHandle;
+use std::mem::replace;
+use std::time::Duration;
 use crate::statsig::internal::statsig_network::StatsigNetwork;
 use crate::{StatsigEvent, StatsigOptions};
+use crate::statsig::statsig_event::StatsigEventInternal;
 
 pub struct StatsigLogger {
     network: Arc<StatsigNetwork>,
-    events: Arc<RwLock<Vec<StatsigEvent>>>,
+    events: Arc<RwLock<Vec<StatsigEventInternal>>>,
     max_queue_size: u32,
     flush_interval_ms: u32,
     bg_thread_handle: Option<JoinHandle<()>>,
@@ -27,14 +30,42 @@ impl StatsigLogger {
 
     pub fn spawn_bg_thread(&mut self) {
         let events = self.events.clone();
-        self.bg_thread_handle = Some(thread::spawn(move || {
-            events.write().ok().unwrap().clear();
+        let network = self.network.clone();
+        let interval = Duration::from_millis(self.flush_interval_ms as u64);
+
+        self.bg_thread_handle = Some(thread::spawn(move || loop {
+            Self::flush_impl(&network, &events); // TODO: await this
+            thread::sleep(interval)
         }));
     }
 
     pub fn enqueue(&self, event: StatsigEvent) {
+        self.enqueue_internal(StatsigEventInternal::from_event(event));
+    }
+
+    pub async fn flush(&self) {
+        Self::flush_impl(&self.network, &self.events).await;
+    }
+    
+    fn enqueue_internal(&self, event: StatsigEventInternal) {
         if let Some(mut mut_events) = self.events.write().ok() {
             mut_events.push(event);
         };
+    }
+
+    async fn flush_impl(network: &StatsigNetwork, events: &RwLock<Vec<StatsigEventInternal>>) {
+        let count = match events.read().ok() {
+            Some(e) => e.len(),
+            _ => return,
+        };
+
+        if count == 0 {
+            return;
+        }
+
+        let mut mut_events = events.write().ok().unwrap();
+        let local_events = replace(&mut *mut_events, Vec::new());
+        drop(mut_events);
+        network.send_events(&local_events).await
     }
 }
