@@ -1,6 +1,11 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use serde_json::from_value;
+
 use crate::{StatsigEvent, StatsigOptions};
+use crate::statsig::dynamic_config::DynamicConfig;
+use crate::statsig::internal::statsig_event_internal::make_config_exposure;
 use crate::StatsigUser;
 
 use super::evaluation::StatsigEvaluator;
@@ -43,10 +48,29 @@ impl StatsigDriver {
 
     pub fn check_gate(&self, user: StatsigUser, gate_name: &String) -> bool {
         let eval_result = self.evaluator.check_gate(&user, gate_name);
+        
         self.logger.enqueue(make_gate_exposure(
             user, gate_name, &eval_result, &self.options.environment,
         ));
+        
         return eval_result.bool_value;
+    }
+
+    pub fn get_config(&self, user: StatsigUser, config_name: &String) -> DynamicConfig {
+        let eval_result = self.evaluator.get_config(&user, config_name);
+
+        self.logger.enqueue(make_config_exposure(
+            user, config_name, &eval_result, &self.options.environment,
+        ));
+
+        let mut value = HashMap::from([]);
+        if let Some(json_value) = eval_result.json_value {
+            if let Ok(deserialized) = from_value(json_value) {
+                value = deserialized;
+            }
+        }
+
+        return DynamicConfig { name: config_name.clone(), value, rule_id: eval_result.rule_id };
     }
 
     pub fn log_event(&self, event: StatsigEvent) {

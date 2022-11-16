@@ -31,15 +31,23 @@ impl StatsigEvaluator {
     }
 
     pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> EvalResult {
-        self.spec_store.use_gate(gate_name, |gate| {
-            match gate {
-                Some(gate) => self.eval_spec(user, gate),
-                _ => EvalResult::default()
-            }
+        self.spec_store.use_spec("gate", gate_name, |gate| {
+            self.eval_spec(user, gate)
         })
     }
 
-    fn eval_spec(&self, user: &StatsigUser, spec: &APISpec) -> EvalResult {
+    pub fn get_config(&self, user: &StatsigUser, config_name: &String) -> EvalResult {
+        self.spec_store.use_spec("config", config_name, |config| {
+            self.eval_spec(user, config)
+        })
+    }
+
+    fn eval_spec(&self, user: &StatsigUser, spec: Option<&APISpec>) -> EvalResult {
+        let spec = match spec {
+            Some(spec) => spec,
+            _ => return EvalResult::default()
+        };
+        
         if !spec.enabled {
             return EvalResult {
                 json_value: Some(spec.default_value.clone()),
@@ -202,7 +210,7 @@ impl StatsigEvaluator {
             ("gateValue".to_string(), gate_value.to_string()),
             ("ruleID".to_string(), result.rule_id)
         ]);
-        
+
         if condition_type == "fail_gate" {
             gate_value = !gate_value;
         }
@@ -211,10 +219,10 @@ impl StatsigEvaluator {
             Some(v) => v,
             None => vec![]
         };
-        
+
         exposures.push(exposure);
-        
-        EvalResult{
+
+        EvalResult {
             exposures: Some(exposures),
             ..EvalResult::boolean(gate_value)
         }

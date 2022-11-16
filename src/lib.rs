@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use lazy_static::lazy_static;
 
+use statsig::dynamic_config::DynamicConfig;
 use statsig::internal::StatsigDriver;
 use statsig::statsig_error::StatsigError;
 //
@@ -63,6 +64,12 @@ impl Statsig {
     pub fn check_gate(user: StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
         Self::use_instance(|driver| {
             Ok(driver.check_gate(user, gate_name))
+        })
+    }
+    
+    pub fn get_config(user: StatsigUser, config_name: &String) -> Result<DynamicConfig, StatsigError> {
+        Self::use_instance(|driver| {
+            Ok(driver.get_config(user, config_name))
         })
     }
 

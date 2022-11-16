@@ -26,16 +26,15 @@ impl StatsigStore {
 
         let mut specs = Specs::new();
         for feature_gate in downloaded_configs.feature_gates {
-            // specs.gates.insert(feature_gate.name.to_string(), Arc::from(feature_gate));
             specs.gates.insert(feature_gate.name.to_string(), feature_gate);
         }
 
         for dynamic_config in downloaded_configs.dynamic_configs {
-            specs.configs.insert(dynamic_config.name.to_string(), Arc::from(dynamic_config));
+            specs.configs.insert(dynamic_config.name.to_string(), dynamic_config);
         }
 
         for layer_config in downloaded_configs.layer_configs {
-            specs.layers.insert(layer_config.name.to_string(), Arc::from(layer_config));
+            specs.layers.insert(layer_config.name.to_string(), layer_config);
         }
 
         if let Some(mut mut_specs) = self.specs.write().ok() {
@@ -43,23 +42,23 @@ impl StatsigStore {
         };
     }
 
-    // pub fn get_gate(&self, gate_name: &String) -> Option<Arc<APISpec>> {
-    //     match self.specs.lock().ok()?.gates.get(gate_name.as_str()) {
-    //         Some(spec) => Some(spec.clone()),
-    //         None => None
-    //     }
-    // }
-
-    pub fn use_gate<T>(&self, gate_name: &String, func: impl Fn(Option<&APISpec>) -> T) -> T
+    pub fn use_spec<T>(&self, spec_type: &str, spec_name: &String, func: impl Fn(Option<&APISpec>) -> T) -> T
     {
-        func(self.specs.read().ok().unwrap().gates.get(gate_name))
+        let specs = self.specs.read().ok().unwrap();
+        let specs_map = match spec_type {
+            "config" => &specs.configs,
+            "layer" => &specs.layers,
+            _ => &specs.gates,
+        };
+        
+        func(specs_map.get(spec_name))
     }
 }
 
 struct Specs {
     gates: HashMap<String, APISpec>,
-    configs: HashMap<String, Arc<APISpec>>,
-    layers: HashMap<String, Arc<APISpec>>,
+    configs: HashMap<String, APISpec>,
+    layers: HashMap<String, APISpec>,
 }
 
 impl Specs {
