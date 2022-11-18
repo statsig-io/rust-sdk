@@ -49,7 +49,7 @@ impl StatsigNetwork {
         res.json::<APIDownloadedConfigs>().await.ok()
     }
 
-    pub async fn send_events(&self, events: &Vec<StatsigEventInternal>) {
+    pub async fn send_events(&self, events: Vec<StatsigEventInternal>) {
         let mut body: HashMap<&str, Value> = HashMap::new();
         body.insert("events", json!(events));
 
@@ -59,7 +59,7 @@ impl StatsigNetwork {
             None => return
         };
 
-        println!("{}", res.status())
+        println!("{}", res.status());
     }
 
     async fn make_request(&self, endpoint: &str, body: &mut HashMap<&str, Value>) -> Result<Response, Error> {

@@ -4,11 +4,12 @@ use std::sync::Arc;
 use serde_json::from_value;
 
 use crate::{StatsigEvent, StatsigOptions};
-use crate::statsig::dynamic_config::DynamicConfig;
 use crate::statsig::internal::statsig_event_internal::make_config_exposure;
 use crate::StatsigUser;
 
+use super::DynamicConfig;
 use super::evaluation::StatsigEvaluator;
+use super::Layer;
 use super::statsig_event_internal::{finalize_event, make_gate_exposure};
 use super::statsig_logger::StatsigLogger;
 use super::statsig_network::StatsigNetwork;
@@ -38,8 +39,9 @@ impl StatsigDriver {
         };
     }
 
-    pub async fn initialize(&self) -> Option<()> {
-        self.store.download_config_specs().await
+    pub async fn initialize(&self) {
+        // bubble up error?
+        self.store.download_config_specs().await;
     }
 
     pub async fn shutdown(&self) {
@@ -48,11 +50,11 @@ impl StatsigDriver {
 
     pub fn check_gate(&self, user: StatsigUser, gate_name: &String) -> bool {
         let eval_result = self.evaluator.check_gate(&user, gate_name);
-        
+
         self.logger.enqueue(make_gate_exposure(
             user, gate_name, &eval_result, &self.options.environment,
         ));
-        
+
         return eval_result.bool_value;
     }
 
@@ -71,6 +73,23 @@ impl StatsigDriver {
         }
 
         return DynamicConfig { name: config_name.clone(), value, rule_id: eval_result.rule_id };
+    }
+
+    pub fn get_layer(&self, user: StatsigUser, layer_name: &String) -> Layer {
+        let eval_result = self.evaluator.get_config(&user, layer_name);
+
+        // self.logger.enqueue(make_config_exposure(
+        //     user, config_name, &eval_result, &self.options.environment,
+        // ));
+
+        let mut value = HashMap::from([]);
+        if let Some(json_value) = eval_result.json_value {
+            if let Ok(deserialized) = from_value(json_value) {
+                value = deserialized;
+            }
+        }
+
+        return Layer { name: layer_name.clone(), value, rule_id: eval_result.rule_id };
     }
 
     pub fn log_event(&self, event: StatsigEvent) {

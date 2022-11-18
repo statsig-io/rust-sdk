@@ -1,4 +1,3 @@
-pub mod dynamic_config;
 pub mod internal;
 pub mod statsig_error;
 pub mod statsig_event;

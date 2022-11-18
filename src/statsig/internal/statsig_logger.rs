@@ -59,7 +59,7 @@ impl StatsigLogger {
         let mut mut_events = events.write().ok().unwrap();
         let local_events = replace(&mut *mut_events, Vec::new());
         drop(mut_events);
-        network.send_events(&local_events).await;
+        network.send_events(local_events).await;
     }
 
     fn spawn_bg_thread(&mut self) {
