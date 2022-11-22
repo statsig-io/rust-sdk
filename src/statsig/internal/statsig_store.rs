@@ -1,17 +1,20 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use tokio::runtime::Handle;
+
 use super::data_types::{APIDownloadedConfigs, APISpec};
 use super::statsig_network::StatsigNetwork;
 
 pub struct StatsigStore {
+    runtime_handle: Handle,
     specs: RwLock<Specs>,
     network: Arc<StatsigNetwork>,
 }
 
 impl StatsigStore {
-    pub fn new(network: Arc<StatsigNetwork>) -> StatsigStore {
-        StatsigStore { network, specs: RwLock::from(Specs::new()) }
+    pub fn new(runtime_handle: &Handle, network: Arc<StatsigNetwork>) -> StatsigStore {
+        StatsigStore { runtime_handle: runtime_handle.clone(), network, specs: RwLock::from(Specs::new()) }
     }
 
     pub async fn download_config_specs(&self) -> Option<()> {
@@ -50,7 +53,7 @@ impl StatsigStore {
             "layer" => &specs.layers,
             _ => &specs.gates,
         };
-        
+
         func(specs_map.get(spec_name))
     }
 }

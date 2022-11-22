@@ -1,8 +1,10 @@
 use std::mem::replace;
 use std::sync::{Arc, RwLock};
-use std::thread;
-use std::thread::JoinHandle;
+use std::thread::sleep;
 use std::time::Duration;
+
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 
 use crate::statsig::internal::statsig_network::StatsigNetwork;
 use crate::StatsigOptions;
@@ -10,6 +12,7 @@ use crate::StatsigOptions;
 use super::statsig_event_internal::StatsigEventInternal;
 
 pub struct StatsigLogger {
+    runtime_handle: Handle,
     network: Arc<StatsigNetwork>,
     events: Arc<RwLock<Vec<StatsigEventInternal>>>,
     max_queue_size: usize,
@@ -18,8 +21,9 @@ pub struct StatsigLogger {
 }
 
 impl StatsigLogger {
-    pub fn new(network: Arc<StatsigNetwork>, options: &StatsigOptions) -> Self {
+    pub fn new(runtime_handle: &Handle, network: Arc<StatsigNetwork>, options: &StatsigOptions) -> Self {
         let mut inst = Self {
+            runtime_handle: runtime_handle.clone(),
             network,
             events: Arc::from(RwLock::from(vec![])),
             max_queue_size: options.logger_max_queue_size as usize,
@@ -38,12 +42,16 @@ impl StatsigLogger {
         };
 
         if should_flush {
-            self.flush();
+            let events = self.events.clone();
+            let network = self.network.clone();
+            self.runtime_handle.spawn(async move {
+                Self::flush_impl(&network, &events).await;
+            });
         }
     }
 
     pub async fn flush(&self) {
-        Self::flush_impl(&self.network, &self.events).await;
+        Self::flush_impl(&self.network, &self.events).await
     }
 
     async fn flush_impl(network: &StatsigNetwork, events: &RwLock<Vec<StatsigEventInternal>>) {
@@ -52,14 +60,18 @@ impl StatsigLogger {
             _ => return,
         };
 
-        if count == 0 {
-            return;
+        let mut local_events = None;
+        
+        if count != 0 {
+            if let Some(mut lock) = events.write().ok() {
+                local_events = Some(replace(&mut *lock, Vec::new()));
+                drop(lock);
+            }
         }
 
-        let mut mut_events = events.write().ok().unwrap();
-        let local_events = replace(&mut *mut_events, Vec::new());
-        drop(mut_events);
-        network.send_events(local_events).await;
+        if let Some(local_events) = local_events {
+            network.send_events(local_events).await;
+        }
     }
 
     fn spawn_bg_thread(&mut self) {
@@ -67,9 +79,13 @@ impl StatsigLogger {
         let network = self.network.clone();
         let interval = Duration::from_millis(self.flush_interval_ms as u64);
 
-        self.bg_thread_handle = Some(thread::spawn(move || loop {
-            Self::flush_impl(&network, &events); // TODO: await this
-            thread::sleep(interval)
-        }));
+        self.bg_thread_handle = Some(
+            self.runtime_handle.spawn(async move {
+                loop {
+                    Self::flush_impl(&network, &events).await;
+                    sleep(interval)
+                };
+            })
+        );
     }
 }

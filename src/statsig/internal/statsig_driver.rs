@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde_json::from_value;
+use tokio::runtime::{Builder, Runtime};
 
 use crate::{StatsigEvent, StatsigOptions};
 use crate::statsig::internal::statsig_event_internal::make_config_exposure;
@@ -18,25 +19,37 @@ use super::statsig_store::StatsigStore;
 pub struct StatsigDriver {
     pub secret_key: String,
     pub options: StatsigOptions,
+    runtime: Mutex<Option<Runtime>>,
     store: Arc<StatsigStore>,
     evaluator: StatsigEvaluator,
     logger: StatsigLogger,
 }
 
 impl StatsigDriver {
-    pub fn new(secret_key: &str, options: StatsigOptions) -> Self {
-        let network = Arc::from(StatsigNetwork::new(secret_key, &options));
-        let store = Arc::from(StatsigStore::new(network.clone()));
-        let evaluator = StatsigEvaluator::new(store.clone());
-        let logger = StatsigLogger::new(network.clone(), &options);
-
-        return StatsigDriver {
-            secret_key: secret_key.to_string(),
-            options,
-            store,
-            evaluator,
-            logger,
+    pub fn new(secret_key: &str, options: StatsigOptions) -> std::io::Result<Self> {
+        let runtime = match Builder::new_multi_thread()
+            .worker_threads(3)
+            .thread_name("statsig")
+            .build() {
+            Ok(rt) => rt,
+            Err(e) => return Err(e)
         };
+
+        let network = Arc::from(StatsigNetwork::new(secret_key, &options));
+        let store = Arc::from(StatsigStore::new(runtime.handle(), network.clone()));
+        let evaluator = StatsigEvaluator::new(store.clone());
+        let logger = StatsigLogger::new(runtime.handle(), network.clone(), &options);
+
+        return Ok(
+            StatsigDriver {
+                secret_key: secret_key.to_string(),
+                options,
+                runtime: Mutex::from(Some(runtime)),
+                store,
+                evaluator,
+                logger,
+            }
+        );
     }
 
     pub async fn initialize(&self) {
@@ -46,6 +59,12 @@ impl StatsigDriver {
 
     pub async fn shutdown(&self) {
         self.logger.flush().await;
+
+        if let Some(mut lock) = self.runtime.lock().ok() {
+            if let Some(runtime) = lock.take() {
+                runtime.shutdown_background()
+            }
+        }
     }
 
     pub fn check_gate(&self, user: StatsigUser, gate_name: &String) -> bool {

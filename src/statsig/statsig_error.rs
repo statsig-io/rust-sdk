@@ -15,6 +15,12 @@ impl StatsigError {
             message: "Statsig is already initialized".to_string()
         }
     }
+    
+    pub fn instantiation_failure() -> Self {
+        StatsigError {
+            message: "Failed to create a Statsig instance".to_string()
+        }
+    }
 
     pub fn uninitialized() -> Self {
         StatsigError {

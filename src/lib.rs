@@ -35,8 +35,12 @@ impl Statsig {
             Some(_d) => {
                 return Some(StatsigError::already_initialized());
             }
-            _ => StatsigDriver::new(secret, options)
+            _ => match StatsigDriver::new(secret, options) {
+                Ok(d) => d,
+                Err(_e) => return Some(StatsigError::instantiation_failure())
+            }
         };
+
         driver.initialize().await;
         *guard = Some(driver);
 
@@ -60,19 +64,19 @@ impl Statsig {
 
         None
     }
-
+    
     pub fn check_gate(user: StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.check_gate(user, gate_name))
         })
     }
-    
+
     pub fn get_config(user: StatsigUser, config_name: &String) -> Result<DynamicConfig, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_config(user, config_name))
         })
     }
-    
+
     pub fn get_layer(user: StatsigUser, layer_name: &String) -> Result<Layer, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_layer(user, layer_name))
