@@ -6,7 +6,10 @@ pub struct EvalResult {
     pub json_value: Option<Value>,
     pub rule_id: String,
     pub fetch_from_server: bool,
-    pub exposures: Option<Vec<HashMap<String, String>>>,
+    pub secondary_exposures: Option<Vec<HashMap<String, String>>>,
+    pub undelegated_secondary_exposures: Option<Vec<HashMap<String, String>>>,
+    pub explicit_parameters: Option<Vec<String>>,
+    pub config_delegate: Option<String>
 }
 
 impl EvalResult {
@@ -30,7 +33,10 @@ impl EvalResult {
             json_value: None,
             rule_id: "".to_string(),
             fetch_from_server: false,
-            exposures: None,
+            secondary_exposures: None,
+            undelegated_secondary_exposures: None,
+            explicit_parameters: None,
+            config_delegate: None
         }
     }
 }

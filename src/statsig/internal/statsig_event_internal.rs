@@ -36,7 +36,7 @@ pub(crate) fn make_gate_exposure(
         ])),
     };
 
-    finalize_with_exposures(event, statsig_environment, eval_result.exposures.clone())
+    finalize_with_exposures(event, statsig_environment, eval_result.secondary_exposures.clone())
 }
 
 pub(crate) fn make_config_exposure(
@@ -54,7 +54,43 @@ pub(crate) fn make_config_exposure(
         ])),
     };
 
-    finalize_with_exposures(event, statsig_environment, eval_result.exposures.clone())
+    finalize_with_exposures(event, statsig_environment, eval_result.secondary_exposures.clone())
+}
+
+pub(crate) fn make_layer_exposure(
+    user: StatsigUser,
+    layer_name: &String,
+    parameter_name: &String,
+    eval_result: &EvalResult,
+    statsig_environment: &StatsigEnvironment
+) -> StatsigEventInternal {
+    
+    let mut exposures = &eval_result.undelegated_secondary_exposures;
+    let mut allocated_experiment = None;
+    let is_explicit = match &eval_result.explicit_parameters {
+        Some(explicit_params) => explicit_params.contains(parameter_name),
+        _ => false
+    };
+    
+    if is_explicit {
+        allocated_experiment = eval_result.config_delegate.clone();
+        exposures = &eval_result.secondary_exposures;
+    }
+    
+    let event = StatsigEvent {
+        user,
+        event_name: "statsig::layer_exposure".to_string(),
+        value: None,
+        metadata: Some(HashMap::from([
+            ("config".to_string(), json!(layer_name)),
+            ("ruleID".to_string(), json!(eval_result.rule_id)),
+            ("allocatedExperiment".to_string(), json!(allocated_experiment.unwrap_or("".to_string()))),
+            ("parameterName".to_string(), json!(parameter_name)),
+            ("isExplicitParameter".to_string(), json!(format!("{}", is_explicit))),
+        ])),
+    };
+
+    finalize_with_exposures(event, statsig_environment, exposures.clone())
 }
 
 pub(crate) fn finalize_event(event: StatsigEvent, statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {

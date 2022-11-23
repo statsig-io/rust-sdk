@@ -12,7 +12,8 @@ use statsig::statsig_error::StatsigError;
 pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
-use crate::statsig::internal::{DynamicConfig, Layer};
+
+use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData};
 
 mod statsig;
 
@@ -24,51 +25,36 @@ pub struct Statsig {}
 
 impl Statsig {
     pub async fn initialize(secret: &str, options: StatsigOptions) -> Option<StatsigError> {
-        let mut guard = match DRIVER.write().ok() {
-            Some(guard) => guard,
-            _ => {
-                return Some(StatsigError::singleton_lock_failure());
-            }
-        };
-        
-        let driver = match guard.deref() {
-            Some(_d) => {
-                return Some(StatsigError::already_initialized());
-            }
-            _ => match StatsigDriver::new(secret, options) {
-                Ok(d) => d,
-                Err(_e) => return Some(StatsigError::instantiation_failure())
-            }
-        };
+        let read_guard = unwrap_or_return!(
+            DRIVER.read().ok(), Some(StatsigError::singleton_lock_failure()));
+
+        if let Some(_driver) = read_guard.deref() {
+            return Some(StatsigError::already_initialized());
+        }
+        drop(read_guard);
+
+        let driver = unwrap_or_return!(
+            StatsigDriver::new(secret, options).ok(), Some(StatsigError::instantiation_failure()));
 
         driver.initialize().await;
-        
-        *guard = Some(driver);
-        drop(guard);
-        
+
+        let mut write_guard = unwrap_or_return!(
+            DRIVER.write().ok(), Some(StatsigError::singleton_lock_failure()));
+
+        *write_guard = Some(driver);
         None
     }
 
     pub async fn shutdown() -> Option<StatsigError> {
-        let mut guard = match DRIVER.write().ok() {
-            Some(guard) => guard,
-            _ => {
-                return Some(StatsigError::singleton_lock_failure());
-            }
-        };
+        let mut write_guard = unwrap_or_return!(
+            DRIVER.write().ok(), Some(StatsigError::singleton_lock_failure()));
 
-        let driver = match guard.deref() {
-            Some(d) => d,
-            _ => return None
-        };
-
+        let driver = unwrap_or_return!(write_guard.deref(), None);
         driver.shutdown().await;
-        *guard = None;
-        drop(guard);
-
+        *write_guard = None;
         None
     }
-    
+
     pub fn check_gate(user: StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.check_gate(user, gate_name))
@@ -98,6 +84,12 @@ impl Statsig {
         }
     }
 
+    pub(crate) fn log_layer_parameter_exposure(layer: &Layer, parameter_name: &String, log_data: &LayerLogData) {
+        let _ = Self::use_driver(|driver| {
+            Ok(driver.log_layer_parameter_exposure(layer, parameter_name, log_data))
+        });
+    }
+
     fn use_driver<T>(func: impl FnOnce(&StatsigDriver) -> Result<T, StatsigError>) -> Result<T, StatsigError> {
         if let Some(guard) = DRIVER.read().ok() {
             if let Some(driver) = guard.deref() {
@@ -112,6 +104,9 @@ impl Statsig {
     #[cfg(statsig_kong)]
     pub fn __unsafe_reset() {
         if let Some(mut guard) = DRIVER.write().ok() {
+            if let Some(driver) = guard.deref() {
+                driver.__unsafe_shutdown();
+            }
             *guard = None;
         }
     }

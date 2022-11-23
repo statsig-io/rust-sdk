@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use serde_json::Value::{Null};
 use crate::statsig::internal::evaluation::eval_helpers::{compare_str_with_regex, compare_time, value_to_string};
 
-use crate::StatsigUser;
+use crate::{StatsigUser, unwrap_or_return};
 
 use super::country_lookup::CountryLookup;
 use super::eval_helpers::{compare_numbers, compare_strings_in_array, compare_versions, compute_user_hash};
@@ -31,14 +31,20 @@ impl StatsigEvaluator {
     }
 
     pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> EvalResult {
-        self.spec_store.use_spec("gate", gate_name, |gate| {
-            self.eval_spec(user, gate)
-        })
+        self.eval(user, gate_name, "gate")
     }
 
     pub fn get_config(&self, user: &StatsigUser, config_name: &String) -> EvalResult {
-        self.spec_store.use_spec("config", config_name, |config| {
-            self.eval_spec(user, config)
+        self.eval(user, config_name, "config")
+    }
+
+    pub fn get_layer(&self, user: &StatsigUser, layer_name: &String) -> EvalResult {
+        self.eval(user, layer_name, "layer")
+    }
+    
+    fn eval(&self, user: &StatsigUser, spec_name: &String, spec_type: &str) -> EvalResult {
+        self.spec_store.use_spec(spec_type, spec_name, |spec| {
+            self.eval_spec(user, spec)
         })
     }
 
@@ -65,12 +71,16 @@ impl StatsigEvaluator {
                 return result;
             }
 
-            if let Some(mut result_exposures) = result.exposures {
+            if let Some(mut result_exposures) = result.secondary_exposures {
                 exposures.append(&mut result_exposures);
             }
 
             if !result.bool_value {
                 continue;
+            }
+            
+            if let Some(delegated_result) = self.eval_delegate(user, rule, &exposures) {
+                return delegated_result;
             }
 
             let pass = self.eval_pass_percentage(user, rule, &spec.salt);
@@ -81,7 +91,8 @@ impl StatsigEvaluator {
                     false => Some(spec.default_value.clone())
                 },
                 rule_id: result.rule_id,
-                exposures: Some(exposures),
+                secondary_exposures: Some(exposures.clone()),
+                undelegated_secondary_exposures: Some(exposures),
                 ..EvalResult::default()
             };
         }
@@ -89,7 +100,8 @@ impl StatsigEvaluator {
         EvalResult {
             json_value: Some(spec.default_value.clone()),
             rule_id: "default".to_string(),
-            exposures: Some(exposures),
+            secondary_exposures: Some(exposures.clone()),
+            undelegated_secondary_exposures: Some(exposures),
             ..EvalResult::default()
         }
     }
@@ -104,7 +116,7 @@ impl StatsigEvaluator {
                 return result;
             }
 
-            if let Some(mut result_exposures) = result.exposures {
+            if let Some(mut result_exposures) = result.secondary_exposures {
                 exposures.append(&mut result_exposures);
             }
 
@@ -117,9 +129,33 @@ impl StatsigEvaluator {
             bool_value: pass,
             json_value: Some(rule.return_value.clone()),
             rule_id: rule.id.clone(),
-            exposures: Some(exposures),
+            secondary_exposures: Some(exposures),
             ..EvalResult::default()
         }
+    }
+    
+    fn eval_delegate(&self, user: &StatsigUser, rule: &APIRule, exposures: &Vec<HashMap<String, String>>) -> Option<EvalResult> {
+        let delegate = unwrap_or_return!(&rule.config_delegate, None);
+        self.spec_store.use_spec("config", delegate, |spec| {
+            let mut result = self.eval_spec(user, spec);
+            if result.fetch_from_server {
+                return Some(result);
+            }
+
+            let undel_sec_expo = exposures.clone();
+            let mut sec_expo = exposures.clone();
+            if let Some(mut result_exposures) = result.secondary_exposures {
+                sec_expo.append(&mut result_exposures);
+            }
+            
+            let spec = unwrap_or_return!(spec, None);
+            result.explicit_parameters = spec.explicit_parameters.clone();
+            result.secondary_exposures = Some(sec_expo);
+            result.undelegated_secondary_exposures = Some(undel_sec_expo);
+            result.config_delegate = Some(delegate.clone());
+
+            Some(result)
+        })
     }
 
     fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
@@ -215,7 +251,7 @@ impl StatsigEvaluator {
             gate_value = !gate_value;
         }
 
-        let mut exposures = match result.exposures {
+        let mut exposures = match result.secondary_exposures {
             Some(v) => v,
             None => vec![]
         };
@@ -223,7 +259,7 @@ impl StatsigEvaluator {
         exposures.push(exposure);
 
         EvalResult {
-            exposures: Some(exposures),
+            secondary_exposures: Some(exposures),
             ..EvalResult::boolean(gate_value)
         }
     }
