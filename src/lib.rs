@@ -30,7 +30,7 @@ impl Statsig {
                 return Some(StatsigError::singleton_lock_failure());
             }
         };
-
+        
         let driver = match guard.deref() {
             Some(_d) => {
                 return Some(StatsigError::already_initialized());
@@ -42,13 +42,15 @@ impl Statsig {
         };
 
         driver.initialize().await;
+        
         *guard = Some(driver);
-
+        drop(guard);
+        
         None
     }
 
     pub async fn shutdown() -> Option<StatsigError> {
-        let guard = match DRIVER.write().ok() {
+        let mut guard = match DRIVER.write().ok() {
             Some(guard) => guard,
             _ => {
                 return Some(StatsigError::singleton_lock_failure());
@@ -61,6 +63,8 @@ impl Statsig {
         };
 
         driver.shutdown().await;
+        *guard = None;
+        drop(guard);
 
         None
     }
@@ -102,6 +106,14 @@ impl Statsig {
             return Err(StatsigError::uninitialized());
         }
         Err(StatsigError::singleton_lock_failure())
+    }
+
+    #[doc(hidden)]
+    #[cfg(statsig_kong)]
+    pub fn __unsafe_reset() {
+        if let Some(mut guard) = DRIVER.write().ok() {
+            *guard = None;
+        }
     }
 }
 

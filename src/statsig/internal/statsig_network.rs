@@ -36,17 +36,13 @@ impl StatsigNetwork {
         body.insert("lang", json!("rust"));
         body.insert("body", json!("json"));
 
-        let res = match self.make_request("download_config_specs", &mut body)
-            .await.ok() {
-            Some(x) => x,
-            None => return None
-        };
-
+        let res = self.make_request("download_config_specs", &mut body).await.ok()?;
+        
         if res.status() != 200 {
             return None;
         }
 
-        res.json::<APIDownloadedConfigs>().await.ok()
+        res.json().await.ok()?
     }
 
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) {
@@ -59,7 +55,7 @@ impl StatsigNetwork {
             None => return
         };
 
-        println!("{}", res.status());
+        println!("Flush {}", res.status());
     }
 
     async fn make_request(&self, endpoint: &str, body: &mut HashMap<&str, Value>) -> Result<Response, Error> {

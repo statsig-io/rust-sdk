@@ -30,15 +30,24 @@ impl StatsigDriver {
         let runtime = match Builder::new_multi_thread()
             .worker_threads(3)
             .thread_name("statsig")
+            .enable_all()
             .build() {
             Ok(rt) => rt,
             Err(e) => return Err(e)
         };
 
         let network = Arc::from(StatsigNetwork::new(secret_key, &options));
-        let store = Arc::from(StatsigStore::new(runtime.handle(), network.clone()));
+        let logger = StatsigLogger::new(
+            runtime.handle(),
+            network.clone(),
+            &options);
+        let store = Arc::from(StatsigStore::new(
+            runtime.handle(),
+            network.clone(),
+            &options)
+        );
         let evaluator = StatsigEvaluator::new(store.clone());
-        let logger = StatsigLogger::new(runtime.handle(), network.clone(), &options);
+
 
         return Ok(
             StatsigDriver {
