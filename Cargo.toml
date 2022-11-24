@@ -13,4 +13,4 @@ sha2 = "0.10.6"
 uaparser = "0.6.0"
 chrono = "0.4.23"
 regex = "1.7.0"
-tokio = { version = "1.22.0", features = ["rt-multi-thread"] } 
+tokio = { version = "1.22.0", features = ["rt-multi-thread"] }

@@ -41,8 +41,14 @@ impl StatsigNetwork {
         if res.status() != 200 {
             return None;
         }
-
-        res.json().await.ok()?
+        
+        match res.json().await {
+            Ok(json) => Some(json),
+            Err(e) => {
+                println!("{}", e);
+                None
+            }
+        }
     }
 
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) {

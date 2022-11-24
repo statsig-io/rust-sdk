@@ -1,20 +1,20 @@
+use std::sync::{Arc, RwLock};
 use serde_json::{json, Value};
 use serde_json::Value::Null;
-use uaparser::{Parser};
-use crate::StatsigUser;
+use uaparser::{Parser, UserAgentParser as ExtUserAgentParser};
+use crate::{StatsigUser, unwrap_or_return};
 
 pub struct UserAgentParser {
-    parser: uaparser::UserAgentParser,
+    parser: Arc<RwLock<Option<ExtUserAgentParser>>>,
 }
 
 impl UserAgentParser {
     pub fn new() -> Self {
-        let ua_regex_bytes = include_bytes!("resources/ua_parser_regex.yaml");
-
-        Self {
-            parser: uaparser::UserAgentParser::from_bytes(ua_regex_bytes)
-                .expect("UserAgentParser creation failed"),
-        }
+        let mut inst = Self {
+            parser: Arc::from(RwLock::from(None)),
+        };
+        inst.load_parser();
+        inst
     }
 
     pub fn get_value_from_user_agent(&self, user: &StatsigUser, field: &Option<String>) -> Value {
@@ -32,7 +32,10 @@ impl UserAgentParser {
             return Null;
         }
 
-        let parsed = self.parser.parse(user_agent);
+        let lock = unwrap_or_return!(self.parser.read().ok(), Null);
+        let parser = unwrap_or_return!(&*lock, Null);
+
+        let parsed = parser.parse(user_agent);
         match field_lowered.as_str() {
             "os_name" | "osname" => json!(parsed.os.family),
             "os_version" | "osversion" => {
@@ -52,5 +55,13 @@ impl UserAgentParser {
             }
             _ => Null
         }
+    }
+
+    fn load_parser(&mut self) {
+        let parser = self.parser.clone();
+        std::thread::spawn(move || {
+            let mut lock = unwrap_or_return!(parser.write().ok(), ());
+            *lock = Some(ExtUserAgentParser::from_bytes(include_bytes!("resources/ua_parser_regex.yaml")).unwrap());
+        });
     }
 }

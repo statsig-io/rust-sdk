@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::string::ToString;
+use std::time::{SystemTime, UNIX_EPOCH};
+use chrono::Utc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -105,7 +107,7 @@ fn finalize_with_exposures(mut event: StatsigEvent, statsig_environment: &Statsi
 
     StatsigEventInternal {
         event_data: event,
-        time: 1,
+        time: Utc::now().timestamp_millis() as u64,
         secondary_exposures: match secondary_exposures {
             Some(x) => x,
             _ => vec![]
