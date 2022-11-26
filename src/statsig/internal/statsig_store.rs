@@ -64,7 +64,7 @@ impl StatsigStore {
     }
 
     async fn download_config_specs_impl(network: &StatsigNetwork, specs: &RwLock<Specs>) -> Option<()> {
-        let downloaded_configs =network.download_config_specs().await?;
+        let downloaded_configs = network.download_config_specs().await?;
 
         if !downloaded_configs.has_updates {
             return None;
@@ -86,7 +86,7 @@ impl StatsigStore {
         if let Some(mut mut_specs) = specs.write().ok() {
             mut_specs.update(new_specs);
         };
-        
+
         None
     }
 }
