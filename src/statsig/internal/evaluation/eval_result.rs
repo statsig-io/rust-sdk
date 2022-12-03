@@ -5,7 +5,7 @@ pub struct EvalResult {
     pub bool_value: bool,
     pub json_value: Option<Value>,
     pub rule_id: String,
-    pub fetch_from_server: bool,
+    pub unsupported: bool,
     pub secondary_exposures: Option<Vec<HashMap<String, String>>>,
     pub undelegated_secondary_exposures: Option<Vec<HashMap<String, String>>>,
     pub explicit_parameters: Option<Vec<String>>,
@@ -13,9 +13,10 @@ pub struct EvalResult {
 }
 
 impl EvalResult {
-    pub fn fetch_from_server() -> Self {
+    pub fn unsupported() -> Self {
         Self {
-            fetch_from_server: true,
+            unsupported: true,
+            rule_id: "unsupported".to_string(),
             ..Self::default()
         }
     }
@@ -32,7 +33,7 @@ impl EvalResult {
             bool_value: false,
             json_value: None,
             rule_id: "".to_string(),
-            fetch_from_server: false,
+            unsupported: false,
             secondary_exposures: None,
             undelegated_secondary_exposures: None,
             explicit_parameters: None,

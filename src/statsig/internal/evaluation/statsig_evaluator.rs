@@ -67,7 +67,7 @@ impl StatsigEvaluator {
         for rule in spec.rules.iter() {
             let result = self.eval_rule(user, rule);
 
-            if result.fetch_from_server {
+            if result.unsupported {
                 return result;
             }
 
@@ -112,7 +112,7 @@ impl StatsigEvaluator {
 
         for condition in rule.conditions.iter() {
             let result = self.eval_condition(user, condition);
-            if result.fetch_from_server {
+            if result.unsupported {
                 return result;
             }
 
@@ -138,7 +138,7 @@ impl StatsigEvaluator {
         let delegate = unwrap_or_return!(&rule.config_delegate, None);
         self.spec_store.use_spec("config", delegate, |spec| {
             let mut result = self.eval_spec(user, spec);
-            if result.fetch_from_server {
+            if result.unsupported {
                 return Some(result);
             }
 
@@ -184,12 +184,12 @@ impl StatsigEvaluator {
                 _ => Null
             },
             "unit_id" => json!(user.get_unit_id(&condition.id_type)),
-            _ => return EvalResult::fetch_from_server()
+            _ => return EvalResult::unsupported()
         };
 
         let operator = match &condition.operator {
             Some(operator) => operator.as_str(),
-            None => return EvalResult::fetch_from_server()
+            None => return EvalResult::unsupported()
         };
 
         let result = match operator {
@@ -218,7 +218,7 @@ impl StatsigEvaluator {
             "eq" => value == target_value,
             "neq" => value != target_value,
 
-            _ => return EvalResult::fetch_from_server(),
+            _ => return EvalResult::unsupported(),
         };
         return EvalResult::boolean(result);
     }
@@ -236,7 +236,7 @@ impl StatsigEvaluator {
         let gate_name = value_to_string(target_value).unwrap();
         let result = self.check_gate(user, &gate_name);
 
-        if result.fetch_from_server {
+        if result.unsupported {
             return result;
         }
 

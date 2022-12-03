@@ -67,6 +67,11 @@ impl Statsig {
         })
     }
 
+    pub fn get_experiment(user: StatsigUser, experiment_name: &String) -> Result<DynamicConfig, StatsigError> {
+        Self::get_config(user, experiment_name)
+    }
+
+
     pub fn get_layer(user: StatsigUser, layer_name: &String) -> Result<Layer, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_layer(user, layer_name))

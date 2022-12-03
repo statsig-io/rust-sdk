@@ -64,7 +64,12 @@ impl StatsigStore {
     }
 
     async fn download_config_specs_impl(network: &StatsigNetwork, specs: &RwLock<Specs>) -> Option<()> {
-        let downloaded_configs = network.download_config_specs().await?;
+        let last_sync_time = match specs.read().ok() {
+            Some(t) => t.last_sync_time,
+            _ => 0
+        };
+        
+        let downloaded_configs = network.download_config_specs(last_sync_time).await?;
 
         if !downloaded_configs.has_updates {
             return None;
@@ -84,6 +89,8 @@ impl StatsigStore {
         }
 
         if let Some(mut mut_specs) = specs.write().ok() {
+            new_specs.last_sync_time = downloaded_configs.time.as_u64()
+                .unwrap_or(mut_specs.last_sync_time);
             mut_specs.update(new_specs);
         };
 
@@ -92,6 +99,7 @@ impl StatsigStore {
 }
 
 struct Specs {
+    last_sync_time: u64,
     gates: HashMap<String, APISpec>,
     configs: HashMap<String, APISpec>,
     layers: HashMap<String, APISpec>,
@@ -100,6 +108,7 @@ struct Specs {
 impl Specs {
     pub fn new() -> Specs {
         Specs {
+            last_sync_time: 0,
             gates: HashMap::new(),
             configs: HashMap::new(),
             layers: HashMap::new(),
@@ -107,6 +116,7 @@ impl Specs {
     }
 
     pub fn update(&mut self, new_specs: Specs) {
+        self.last_sync_time = new_specs.last_sync_time;
         self.gates = new_specs.gates;
         self.configs = new_specs.configs;
         self.layers = new_specs.layers;

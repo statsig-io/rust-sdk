@@ -4,8 +4,8 @@ use http::HeaderMap;
 use reqwest::{Client, Error, Response};
 use serde_json::{json, Value};
 
-use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
 use crate::StatsigOptions;
+use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
 
 use super::data_types::APIDownloadedConfigs;
 
@@ -31,10 +31,9 @@ impl StatsigNetwork {
         }
     }
 
-    pub async fn download_config_specs(&self) -> Option<APIDownloadedConfigs> {
+    pub async fn download_config_specs(&self, since_time: u64) -> Option<APIDownloadedConfigs> {
         let mut body = HashMap::new();
-        body.insert("lang", json!("rust"));
-        body.insert("body", json!("json"));
+        body.insert("sinceTime", json!(since_time));
 
         let res = self.make_request("download_config_specs", &mut body).await.ok()?;
         
@@ -52,8 +51,9 @@ impl StatsigNetwork {
     }
 
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) {
-        let mut body: HashMap<&str, Value> = HashMap::new();
-        body.insert("events", json!(events));
+        let mut body = HashMap::from([
+            ("events", json!(events))
+        ]);
 
         let res = match self.make_request("log_event", &mut body)
             .await.ok() {
@@ -63,7 +63,7 @@ impl StatsigNetwork {
 
         println!("Flush {}", res.status());
     }
-
+    
     async fn make_request(&self, endpoint: &str, body: &mut HashMap<&str, Value>) -> Result<Response, Error> {
         let url = format!("{}/{}", self.base_api, endpoint);
 

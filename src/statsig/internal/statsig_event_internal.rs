@@ -18,7 +18,7 @@ pub struct StatsigEventInternal {
     pub event_data: StatsigEvent,
 
     pub time: u64,
-    pub secondary_exposures: Vec<HashMap<String, String>>,
+    pub secondary_exposures: Option<Vec<HashMap<String, String>>>,
 }
 
 pub(crate) fn make_gate_exposure(
@@ -107,9 +107,6 @@ fn finalize_with_exposures(mut event: StatsigEvent, statsig_environment: &Statsi
     StatsigEventInternal {
         event_data: event,
         time: Utc::now().timestamp_millis() as u64,
-        secondary_exposures: match secondary_exposures {
-            Some(x) => x,
-            _ => vec![]
-        },
+        secondary_exposures,
     }
 }
