@@ -61,7 +61,7 @@ impl UserAgentParser {
         let parser = self.parser.clone();
         std::thread::spawn(move || {
             let mut lock = unwrap_or_return!(parser.write().ok(), ());
-            *lock = Some(ExtUserAgentParser::from_bytes(include_bytes!("resources/ua_parser_regex.yaml")).unwrap());
+            *lock = Some(ExtUserAgentParser::from_bytes(include_bytes!("resources/ua_parser_regex.yaml")).expect("ua_parser"));
         });
     }
 }

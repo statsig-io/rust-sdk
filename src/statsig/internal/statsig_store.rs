@@ -37,7 +37,7 @@ impl StatsigStore {
 
     pub fn use_spec<T>(&self, spec_type: &str, spec_name: &String, func: impl Fn(Option<&APISpec>) -> T) -> T
     {
-        let specs = self.specs.read().ok().unwrap();
+        let specs = self.specs.read().ok().expect("Specs read lock");
         let specs_map = match spec_type {
             "config" => &specs.configs,
             "layer" => &specs.layers,

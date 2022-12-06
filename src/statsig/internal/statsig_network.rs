@@ -66,7 +66,7 @@ impl StatsigNetwork {
         let url = format!("{}/{}", self.base_api, endpoint);
 
         let mut headers = HeaderMap::new();
-        headers.insert("STATSIG-API-KEY", self.secret.parse().unwrap());
+        headers.insert("STATSIG-API-KEY", self.secret.parse().expect("statsig_api_key -> header"));
 
         body.insert("statsigMetadata", self.statsig_metadata.clone());
 

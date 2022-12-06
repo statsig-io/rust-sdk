@@ -134,7 +134,7 @@ impl StatsigDriver {
 
     pub(crate) fn log_layer_parameter_exposure(&self, layer: &Layer, parameter_name: &String, log_data: &LayerLogData) {
         self.logger.enqueue(make_layer_exposure(
-            from_value(json!(log_data.user)).ok().unwrap(),
+            from_value(json!(log_data.user)).ok().expect("log_layer_parameter_exposure"),
             &layer.name,
             parameter_name,
             &log_data.eval_result,

@@ -233,7 +233,7 @@ impl StatsigEvaluator {
     }
 
     fn eval_nested_gate(&self, user: &StatsigUser, target_value: &Value, condition_type: &String) -> EvalResult {
-        let gate_name = value_to_string(target_value).unwrap();
+        let gate_name = value_to_string(target_value).expect("eval_nested_gate");
         let result = self.check_gate(user, &gate_name);
 
         if result.unsupported {
