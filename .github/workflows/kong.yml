@@ -32,7 +32,7 @@ jobs:
 
       - name: Run cargo check
         run: |
-          cd bridges/rust-server
+          cd kong/bridges/go-server
           ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
           cargo check
           cargo build
@@ -41,6 +41,7 @@ jobs:
 
       - name: Run Tests
         run: |
+          cd kong
           npm install
           FORCE_COLOR=true npm run kong -- test rust -v -r
         env:
