@@ -36,15 +36,15 @@ impl StatsigNetwork {
         body.insert("sinceTime", json!(since_time));
 
         let res = self.make_request("download_config_specs", &mut body).await.ok()?;
-        
+
         if res.status() != 200 {
             return None;
         }
-        
+
         match res.json().await {
             Ok(json) => Some(json),
             Err(e) => {
-                println!("{}", e);
+                println!("[Statsig] Parsing Error: {}", e);
                 None
             }
         }
@@ -55,15 +55,13 @@ impl StatsigNetwork {
             ("events", json!(events))
         ]);
 
-        let res = match self.make_request("log_event", &mut body)
+        match self.make_request("log_event", &mut body)
             .await.ok() {
             Some(x) => x,
             None => return
         };
-
-        println!("Flush {}", res.status());
     }
-    
+
     async fn make_request(&self, endpoint: &str, body: &mut HashMap<&str, Value>) -> Result<Response, Error> {
         let url = format!("{}/{}", self.base_api, endpoint);
 
