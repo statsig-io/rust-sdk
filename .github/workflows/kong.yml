@@ -32,7 +32,7 @@ jobs:
 
       - name: Run cargo check
         run: |
-          cd kong/bridges/go-server
+          cd kong/bridges/rust-server
           ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
           cargo check
           cargo build
