@@ -30,11 +30,6 @@ jobs:
           rustc --version
           cargo clippy --version
 
-      - uses: actions/download-artifact@v3
-        with:
-          name: kong-cache
-          path: ~/tmp/kong/cache
-
       - name: Run cargo check
         run: |
           cd bridges/rust-server
