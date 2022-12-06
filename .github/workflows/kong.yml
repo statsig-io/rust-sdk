@@ -4,14 +4,13 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0/4 * * *"
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 jobs:
-  kong:
-    needs: update-cache
+  KONG:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
