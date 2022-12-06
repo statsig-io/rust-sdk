@@ -1,6 +1,5 @@
 use std::mem::replace;
 use std::sync::{Arc, RwLock};
-use std::thread::sleep;
 use std::time::Duration;
 
 use tokio::runtime::Handle;
@@ -42,18 +41,28 @@ impl StatsigLogger {
         };
 
         if should_flush {
-            let events = self.events.clone();
-            let network = self.network.clone();
-            self.runtime_handle.spawn(async move {
-                Self::flush_impl(&network, &events).await;
-            });
+            self.flush();
         }
     }
 
-    pub async fn flush(&self) {
-        Self::flush_impl(&self.network, &self.events).await
+    pub fn flush(&self) {
+        let events = self.events.clone();
+        let network = self.network.clone();
+        
+        self.runtime_handle.spawn(async move {
+            Self::flush_impl(&network, &events).await
+        });
     }
 
+    pub fn flush_blocking(&self) {
+        let events = self.events.clone();
+        let network = self.network.clone();
+
+        self.runtime_handle.block_on(async move {
+            Self::flush_impl(&network, &events).await;
+        });
+    }
+    
     async fn flush_impl(network: &StatsigNetwork, events: &RwLock<Vec<StatsigEventInternal>>) {
         let count = match events.read().ok() {
             Some(e) => e.len(),
@@ -83,7 +92,7 @@ impl StatsigLogger {
             self.runtime_handle.spawn(async move {
                 loop {
                     Self::flush_impl(&network, &events).await;
-                    sleep(interval)
+                    tokio::time::sleep(interval).await;
                 };
             })
         );

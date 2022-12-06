@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use std::thread::sleep;
 use std::time::Duration;
 
 use tokio::runtime::Handle;
@@ -56,7 +55,7 @@ impl StatsigStore {
         self.bg_thread_handle = Some(
             self.runtime_handle.spawn(async move {
                 loop {
-                    sleep(interval);
+                    tokio::time::sleep(interval).await;
                     Self::download_config_specs_impl(&network, &specs).await;
                 };
             })

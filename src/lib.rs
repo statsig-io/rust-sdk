@@ -12,6 +12,7 @@ use statsig::statsig_error::StatsigError;
 pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
+use tokio::task::spawn_blocking;
 
 use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData};
 
@@ -49,10 +50,13 @@ impl Statsig {
         let mut write_guard = unwrap_or_return!(
             DRIVER.write().ok(), Some(StatsigError::singleton_lock_failure()));
 
-        let driver = unwrap_or_return!(write_guard.deref(), None);
-        driver.shutdown().await;
-        *write_guard = None;
-        None
+        let driver = unwrap_or_return!(write_guard.take(), None);
+        match spawn_blocking(move || {
+            driver.shutdown();
+        }).await {
+            Ok(_t) => None,
+            Err(_e) => Some(StatsigError::shutdown_failure())
+        }
     }
 
     pub fn check_gate(user: StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
@@ -107,12 +111,13 @@ impl Statsig {
 
     #[doc(hidden)]
     #[cfg(statsig_kong)]
-    pub fn __unsafe_reset() {
+    pub async fn __unsafe_reset() {
         if let Some(mut guard) = DRIVER.write().ok() {
-            if let Some(driver) = guard.deref() {
-                driver.__unsafe_shutdown();
+            if let Some(driver) = guard.take() {
+                let _ = spawn_blocking(move || {
+                    driver.shutdown();
+                }).await;
             }
-            *guard = None;
         }
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use serde_json::{from_value, json};
 use tokio::runtime::{Builder, Runtime};
@@ -66,12 +67,12 @@ impl StatsigDriver {
         self.store.download_config_specs().await;
     }
 
-    pub async fn shutdown(&self) {
-        self.logger.flush().await;
-
+    pub fn shutdown(&self) {
+        self.logger.flush_blocking();
+        
         if let Some(mut lock) = self.runtime.lock().ok() {
-            if let Some(runtime) = lock.take() {
-                runtime.shutdown_background()
+            if let Some(runtime) = lock.take() {                
+                runtime.shutdown_timeout(Duration::from_secs(10))
             }
         }
     }
@@ -146,7 +147,7 @@ impl StatsigDriver {
     pub fn __unsafe_shutdown(&self) {
         if let Some(mut lock) = self.runtime.lock().ok() {
             if let Some(runtime) = lock.take() {
-                runtime.shutdown_background()
+                runtime.shutdown_timeout(Duration::from_secs(10))
             }
         }
     }

@@ -27,4 +27,10 @@ impl StatsigError {
             message: "You must call and await Statsig.initialize first.".to_string()
         }
     }
+    
+    pub fn shutdown_failure() -> Self {
+        StatsigError {
+            message: "Was unable to gracefully shutdown the Statsig instance".to_string()
+        }
+    }
 }
