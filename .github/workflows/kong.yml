@@ -1,0 +1,51 @@
+name: KONG
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0/4 * * *"
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  KONG:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get KONG
+        run: |
+          git clone https://${{ secrets.KONG_REPO_PAT }}@github.com/statsig-io/kong.git
+
+      - name: Update local toolchain
+        run: |
+          rustup update
+          rustup component add clippy
+          rustup install nightly
+
+      - name: Toolchain info
+        run: |
+          cargo --version --verbose
+          rustc --version
+          cargo clippy --version
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo check
+        run: |
+          cd kong/bridges/rust-server
+          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
+          cargo check
+          cargo build
+        env:
+          repo_pat: ${{ secrets.KONG_REPO_PAT }}
+
+      - name: Run Tests
+        run: |
+          cd kong
+          npm install
+          FORCE_COLOR=true npm run kong -- test rust -w -v -r
+        env:
+          test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
+          test_client_key: ${{ secrets.KONG_CLIENT_SDK_KEY }}
