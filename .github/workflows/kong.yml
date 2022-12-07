@@ -30,6 +30,8 @@ jobs:
           rustc --version
           cargo clippy --version
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Run cargo check
         run: |
           cd kong/bridges/rust-server
