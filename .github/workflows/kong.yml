@@ -34,7 +34,7 @@ jobs:
         id: cargo-cache
         uses: actions/cache@v3
         with:
-          path: kong/bridges/rust-server/target
+          path: ~/kong/bridges/rust-server/target
           key: ${{ runner.os }}-rust-cache
 
       - name: Cache Hit?
