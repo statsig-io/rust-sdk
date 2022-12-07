@@ -30,7 +30,16 @@ jobs:
           rustc --version
           cargo clippy --version
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Cache Cargo
+        id: cargo-cache
+        uses: actions/cache@v3
+        with:
+          path: kong/bridges/rust-server/target
+          key: ${{ runner.os }}-rust-cache
+
+      - name: Cache Hit?
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        run: echo "No Cache"
 
       - name: Run cargo check
         run: |
