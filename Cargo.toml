@@ -2,7 +2,7 @@
 name = "statsig"
 version = "0.1.0"
 description = "Statsig Rust SDK for usage in multi-user server environments."
-keywords = ["gate", "flag", "deployment", "ci", "test", "ab", "experiment", "statsig"]
+keywords = ["gate", "flag", "ci", "test", "experiment"]
 categories = ["api-bindings", "development-tools", "web-programming", "config"]
 repository = "https://github.com/statsig-io/rust-sdk"
 documentation = "https://docs.statsig.com/server/rustSDK"
