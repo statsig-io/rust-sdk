@@ -1,7 +1,7 @@
 # Statsig for Rust
 
 
-```
+```rust
 use statsig::{Statsig, StatsigUser};
 use tokio;
 
