@@ -10,6 +10,7 @@ homepage = "https://statsig.com/"
 authors = ["Statsig", "Daniel Loomb <daniel@statsig.com>"]
 license = "ISC"
 edition = "2021"
+readme = "README.md"
 
 [dependencies]
 lazy_static = "1.4.0"

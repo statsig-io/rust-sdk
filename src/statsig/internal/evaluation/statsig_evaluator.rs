@@ -30,19 +30,19 @@ impl StatsigEvaluator {
         }
     }
 
-    pub fn check_gate(&self, user: &StatsigUser, gate_name: &String) -> EvalResult {
+    pub fn check_gate(&self, user: &StatsigUser, gate_name: &str) -> EvalResult {
         self.eval(user, gate_name, "gate")
     }
 
-    pub fn get_config(&self, user: &StatsigUser, config_name: &String) -> EvalResult {
+    pub fn get_config(&self, user: &StatsigUser, config_name: &str) -> EvalResult {
         self.eval(user, config_name, "config")
     }
 
-    pub fn get_layer(&self, user: &StatsigUser, layer_name: &String) -> EvalResult {
+    pub fn get_layer(&self, user: &StatsigUser, layer_name: &str) -> EvalResult {
         self.eval(user, layer_name, "layer")
     }
     
-    fn eval(&self, user: &StatsigUser, spec_name: &String, spec_type: &str) -> EvalResult {
+    fn eval(&self, user: &StatsigUser, spec_name: &str, spec_type: &str) -> EvalResult {
         self.spec_store.use_spec(spec_type, spec_name, |spec| {
             self.eval_spec(user, spec)
         })

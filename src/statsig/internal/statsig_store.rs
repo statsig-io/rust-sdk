@@ -35,7 +35,7 @@ impl StatsigStore {
         Self::download_config_specs_impl(&self.network, &self.specs).await
     }
 
-    pub fn use_spec<T>(&self, spec_type: &str, spec_name: &String, func: impl Fn(Option<&APISpec>) -> T) -> T
+    pub fn use_spec<T>(&self, spec_type: &str, spec_name: &str, func: impl Fn(Option<&APISpec>) -> T) -> T
     {
         let specs = self.specs.read().ok().expect("Specs read lock");
         let specs_map = match spec_type {
