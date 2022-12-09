@@ -23,7 +23,7 @@ pub struct StatsigEventInternal {
 
 pub(crate) fn make_gate_exposure(
     user: StatsigUser,
-    gate_name: &String,
+    gate_name: &str,
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
     let event = StatsigEvent {
@@ -42,7 +42,7 @@ pub(crate) fn make_gate_exposure(
 
 pub(crate) fn make_config_exposure(
     user: StatsigUser,
-    config_name: &String,
+    config_name: &str,
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
     let event = StatsigEvent {
@@ -60,8 +60,8 @@ pub(crate) fn make_config_exposure(
 
 pub(crate) fn make_layer_exposure(
     user: StatsigUser,
-    layer_name: &String,
-    parameter_name: &String,
+    layer_name: &str,
+    parameter_name: &str,
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment
 ) -> StatsigEventInternal {
@@ -69,7 +69,7 @@ pub(crate) fn make_layer_exposure(
     let mut exposures = &eval_result.undelegated_secondary_exposures;
     let mut allocated_experiment = None;
     let is_explicit = match &eval_result.explicit_parameters {
-        Some(explicit_params) => explicit_params.contains(parameter_name),
+        Some(explicit_params) => explicit_params.iter().any(|x| x == parameter_name),
         _ => false
     };
     

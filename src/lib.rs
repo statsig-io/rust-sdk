@@ -25,7 +25,11 @@ lazy_static! {
 pub struct Statsig {}
 
 impl Statsig {
-    pub async fn initialize(secret: &str, options: StatsigOptions) -> Option<StatsigError> {
+    pub async fn initialize(secret: &str) -> Option<StatsigError> {
+        Self::initialize_with_options(secret, StatsigOptions::default()).await
+    }
+
+    pub async fn initialize_with_options(secret: &str, options: StatsigOptions) -> Option<StatsigError> {
         let read_guard = unwrap_or_return!(
             DRIVER.read().ok(), Some(StatsigError::singleton_lock_failure()));
 
@@ -59,24 +63,24 @@ impl Statsig {
         }
     }
 
-    pub fn check_gate(user: StatsigUser, gate_name: &String) -> Result<bool, StatsigError> {
+    pub fn check_gate(user: StatsigUser, gate_name: &str) -> Result<bool, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.check_gate(user, gate_name))
         })
     }
 
-    pub fn get_config(user: StatsigUser, config_name: &String) -> Result<DynamicConfig, StatsigError> {
+    pub fn get_config(user: StatsigUser, config_name: &str) -> Result<DynamicConfig, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_config(user, config_name))
         })
     }
 
-    pub fn get_experiment(user: StatsigUser, experiment_name: &String) -> Result<DynamicConfig, StatsigError> {
+    pub fn get_experiment(user: StatsigUser, experiment_name: &str) -> Result<DynamicConfig, StatsigError> {
         Self::get_config(user, experiment_name)
     }
 
 
-    pub fn get_layer(user: StatsigUser, layer_name: &String) -> Result<Layer, StatsigError> {
+    pub fn get_layer(user: StatsigUser, layer_name: &str) -> Result<Layer, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_layer(user, layer_name))
         })

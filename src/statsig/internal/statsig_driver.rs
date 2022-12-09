@@ -77,7 +77,7 @@ impl StatsigDriver {
         }
     }
 
-    pub fn check_gate(&self, user: StatsigUser, gate_name: &String) -> bool {
+    pub fn check_gate(&self, user: StatsigUser, gate_name: &str) -> bool {
         let eval_result = self.evaluator.check_gate(&user, gate_name);
 
         self.logger.enqueue(make_gate_exposure(
@@ -87,7 +87,7 @@ impl StatsigDriver {
         return eval_result.bool_value;
     }
 
-    pub fn get_config(&self, user: StatsigUser, config_name: &String) -> DynamicConfig {
+    pub fn get_config(&self, user: StatsigUser, config_name: &str) -> DynamicConfig {
         let eval_result = self.evaluator.get_config(&user, config_name);
 
         self.logger.enqueue(make_config_exposure(
@@ -101,10 +101,10 @@ impl StatsigDriver {
             }
         }
 
-        return DynamicConfig { name: config_name.clone(), value, rule_id: eval_result.rule_id };
+        return DynamicConfig { name: config_name.to_string(), value, rule_id: eval_result.rule_id };
     }
 
-    pub fn get_layer(&self, user: StatsigUser, layer_name: &String) -> Layer {
+    pub fn get_layer(&self, user: StatsigUser, layer_name: &str) -> Layer {
         let eval_result = self.evaluator.get_layer(&user, layer_name);
 
         let mut value = HashMap::from([]);
@@ -115,7 +115,7 @@ impl StatsigDriver {
         }
 
         return Layer {
-            name: layer_name.clone(),
+            name: layer_name.to_string(),
             value,
             rule_id: eval_result.rule_id.clone(),
             log_data: LayerLogData {
@@ -132,7 +132,7 @@ impl StatsigDriver {
         ))
     }
 
-    pub(crate) fn log_layer_parameter_exposure(&self, layer: &Layer, parameter_name: &String, log_data: &LayerLogData) {
+    pub(crate) fn log_layer_parameter_exposure(&self, layer: &Layer, parameter_name: &str, log_data: &LayerLogData) {
         self.logger.enqueue(make_layer_exposure(
             from_value(json!(log_data.user)).ok().expect("log_layer_parameter_exposure"),
             &layer.name,
