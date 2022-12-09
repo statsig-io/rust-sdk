@@ -1,6 +1,14 @@
 [package]
 name = "statsig"
 version = "0.1.0"
+description = "Statsig Rust SDK for usage in multi-user server environments."
+keywords = ["feature gate", "feature flag", "continuous deployment", "ci", "ab test", "ab", "experiments", "statsig"]
+categories = ["api-bindings", "development-tools", "web-programming", "config"]
+repository = "https://github.com/statsig-io/rust-sdk"
+documentation = "https://docs.statsig.com/server/rustSDK"
+homepage = "https://statsig.com/"
+authors = ["Statsig", "Daniel Loomb <daniel@statsig.com>"]
+license = "ISC"
 edition = "2021"
 
 [dependencies]
