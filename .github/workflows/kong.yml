@@ -5,9 +5,9 @@ on:
   schedule:
     - cron: "0 0/4 * * *"
   pull_request:
-    branches: [main]
+    branches: [ main ]
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   KONG:
@@ -34,10 +34,14 @@ jobs:
         id: cargo-cache
         uses: actions/cache@v3
         with:
-          path: kong/bridges/rust-server
+          path: kong/bridges/rust-server/target
           key: ${{ runner.os }}-rust-cache
 
-      - name: Cache Hit?
+      - name: Cache Hit
+        if: steps.cargo-cache.outputs.cache-hit == 'true'
+        run: echo "Found Cache"
+
+      - name: Cache Miss
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         run: echo "No Cache"
 
@@ -45,7 +49,6 @@ jobs:
         run: |
           cd kong/bridges/rust-server
           ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
-          cargo check
           cargo build
         env:
           repo_pat: ${{ secrets.KONG_REPO_PAT }}
