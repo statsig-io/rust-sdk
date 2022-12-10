@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use serde_json::{from_value, json};
+use serde_json::from_value;
 use tokio::runtime::{Builder, Runtime};
 
 use crate::{LayerLogData, StatsigEvent, StatsigOptions};
@@ -69,16 +69,16 @@ impl StatsigDriver {
 
     pub fn shutdown(&self) {
         self.logger.flush_blocking();
-        
+
         if let Some(mut lock) = self.runtime.lock().ok() {
-            if let Some(runtime) = lock.take() {                
+            if let Some(runtime) = lock.take() {
                 runtime.shutdown_timeout(Duration::from_secs(10))
             }
         }
     }
 
-    pub fn check_gate(&self, user: StatsigUser, gate_name: &str) -> bool {
-        let eval_result = self.evaluator.check_gate(&user, gate_name);
+    pub fn check_gate(&self, user: &StatsigUser, gate_name: &str) -> bool {
+        let eval_result = self.evaluator.check_gate(user, gate_name);
 
         self.logger.enqueue(make_gate_exposure(
             user, gate_name, &eval_result, &self.options.environment,
@@ -87,8 +87,8 @@ impl StatsigDriver {
         return eval_result.bool_value;
     }
 
-    pub fn get_config(&self, user: StatsigUser, config_name: &str) -> DynamicConfig {
-        let eval_result = self.evaluator.get_config(&user, config_name);
+    pub fn get_config(&self, user: &StatsigUser, config_name: &str) -> DynamicConfig {
+        let eval_result = self.evaluator.get_config(user, config_name);
 
         self.logger.enqueue(make_config_exposure(
             user, config_name, &eval_result, &self.options.environment,
@@ -104,8 +104,8 @@ impl StatsigDriver {
         return DynamicConfig { name: config_name.to_string(), value, rule_id: eval_result.rule_id };
     }
 
-    pub fn get_layer(&self, user: StatsigUser, layer_name: &str) -> Layer {
-        let eval_result = self.evaluator.get_layer(&user, layer_name);
+    pub fn get_layer(&self, user: &StatsigUser, layer_name: &str) -> Layer {
+        let eval_result = self.evaluator.get_layer(user, layer_name);
 
         let mut value = HashMap::from([]);
         if let Some(ref json_value) = eval_result.json_value {
@@ -119,14 +119,15 @@ impl StatsigDriver {
             value,
             rule_id: eval_result.rule_id.clone(),
             log_data: LayerLogData {
-                user,
+                user: user.clone(),
                 eval_result,
             },
         };
     }
 
-    pub fn log_event(&self, event: StatsigEvent) {
+    pub fn log_event(&self, user: &StatsigUser, event: StatsigEvent) {
         self.logger.enqueue(finalize_event(
+            user,
             event,
             &self.options.environment,
         ))
@@ -134,7 +135,7 @@ impl StatsigDriver {
 
     pub(crate) fn log_layer_parameter_exposure(&self, layer: &Layer, parameter_name: &str, log_data: &LayerLogData) {
         self.logger.enqueue(make_layer_exposure(
-            from_value(json!(log_data.user)).ok().expect("log_layer_parameter_exposure"),
+            &log_data.user,
             &layer.name,
             parameter_name,
             &log_data.eval_result,

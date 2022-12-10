@@ -13,7 +13,7 @@ pub struct Layer {
 }
 
 impl Layer {
-    pub fn get<T: DeserializeOwned>(&self, key: &String, default: T) -> T {
+    pub fn get<T: DeserializeOwned>(&self, key: &str, default: T) -> T {
         if !self.value.contains_key(key) {
             return default;
         }

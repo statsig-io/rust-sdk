@@ -63,32 +63,32 @@ impl Statsig {
         }
     }
 
-    pub fn check_gate(user: StatsigUser, gate_name: &str) -> Result<bool, StatsigError> {
+    pub fn check_gate(user: &StatsigUser, gate_name: &str) -> Result<bool, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.check_gate(user, gate_name))
         })
     }
 
-    pub fn get_config(user: StatsigUser, config_name: &str) -> Result<DynamicConfig, StatsigError> {
+    pub fn get_config(user: &StatsigUser, config_name: &str) -> Result<DynamicConfig, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_config(user, config_name))
         })
     }
 
-    pub fn get_experiment(user: StatsigUser, experiment_name: &str) -> Result<DynamicConfig, StatsigError> {
+    pub fn get_experiment(user: &StatsigUser, experiment_name: &str) -> Result<DynamicConfig, StatsigError> {
         Self::get_config(user, experiment_name)
     }
 
 
-    pub fn get_layer(user: StatsigUser, layer_name: &str) -> Result<Layer, StatsigError> {
+    pub fn get_layer(user: &StatsigUser, layer_name: &str) -> Result<Layer, StatsigError> {
         Self::use_driver(|driver| {
             Ok(driver.get_layer(user, layer_name))
         })
     }
 
-    pub fn log_event(event: StatsigEvent) -> Option<StatsigError> {
+    pub fn log_event(user: &StatsigUser, event: StatsigEvent) -> Option<StatsigError> {
         let res = Self::use_driver(move |driver| {
-            Ok(driver.log_event(event))
+            Ok(driver.log_event(user, event))
         });
 
         match res {
@@ -97,7 +97,7 @@ impl Statsig {
         }
     }
 
-    pub(crate) fn log_layer_parameter_exposure(layer: &Layer, parameter_name: &String, log_data: &LayerLogData) {
+    pub(crate) fn log_layer_parameter_exposure(layer: &Layer, parameter_name: &str, log_data: &LayerLogData) {
         let _ = Self::use_driver(|driver| {
             Ok(driver.log_layer_parameter_exposure(layer, parameter_name, log_data))
         });

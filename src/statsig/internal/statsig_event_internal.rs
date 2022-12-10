@@ -17,17 +17,17 @@ pub struct StatsigEventInternal {
     #[serde(flatten)]
     pub event_data: StatsigEvent,
 
+    pub user: StatsigUser,
     pub time: u64,
     pub secondary_exposures: Option<Vec<HashMap<String, String>>>,
 }
 
 pub(crate) fn make_gate_exposure(
-    user: StatsigUser,
+    user: &StatsigUser,
     gate_name: &str,
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
     let event = StatsigEvent {
-        user,
         event_name: "statsig::gate_exposure".to_string(),
         value: None,
         metadata: Some(HashMap::from([
@@ -37,16 +37,15 @@ pub(crate) fn make_gate_exposure(
         ])),
     };
 
-    finalize_with_exposures(event, statsig_environment, eval_result.secondary_exposures.clone())
+    finalize_with_exposures(user, event, statsig_environment, eval_result.secondary_exposures.clone())
 }
 
 pub(crate) fn make_config_exposure(
-    user: StatsigUser,
+    user: &StatsigUser,
     config_name: &str,
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
     let event = StatsigEvent {
-        user,
         event_name: "statsig::config_exposure".to_string(),
         value: None,
         metadata: Some(HashMap::from([
@@ -55,11 +54,11 @@ pub(crate) fn make_config_exposure(
         ])),
     };
 
-    finalize_with_exposures(event, statsig_environment, eval_result.secondary_exposures.clone())
+    finalize_with_exposures(user, event, statsig_environment, eval_result.secondary_exposures.clone())
 }
 
 pub(crate) fn make_layer_exposure(
-    user: StatsigUser,
+    user: &StatsigUser,
     layer_name: &str,
     parameter_name: &str,
     eval_result: &EvalResult,
@@ -79,7 +78,6 @@ pub(crate) fn make_layer_exposure(
     }
     
     let event = StatsigEvent {
-        user,
         event_name: "statsig::layer_exposure".to_string(),
         value: None,
         metadata: Some(HashMap::from([
@@ -91,21 +89,25 @@ pub(crate) fn make_layer_exposure(
         ])),
     };
 
-    finalize_with_exposures(event, statsig_environment, exposures.clone())
+    finalize_with_exposures(user, event, statsig_environment, exposures.clone())
 }
 
-pub(crate) fn finalize_event(event: StatsigEvent, statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
-    finalize_with_exposures(event, statsig_environment, None)
+pub(crate) fn finalize_event(user: &StatsigUser, event: StatsigEvent, statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
+    finalize_with_exposures(user, event, statsig_environment, None)
 }
 
-fn finalize_with_exposures(mut event: StatsigEvent, statsig_environment: &StatsigEnvironment, secondary_exposures: Option<Vec<HashMap<String, String>>>) -> StatsigEventInternal {
+fn finalize_with_exposures(user: &StatsigUser, event: StatsigEvent, statsig_environment: &StatsigEnvironment, secondary_exposures: Option<Vec<HashMap<String, String>>>) -> StatsigEventInternal {
+    let mut user_copy = user.clone();
+    
     if let Some(env) = statsig_environment {
-        event.user.statsig_environment = Some(env.clone());
+        user_copy.statsig_environment = Some(env.clone());
     }
-    event.user.private_attributes = None;
+
+    user_copy.private_attributes = None;
 
     StatsigEventInternal {
         event_data: event,
+        user: user_copy,
         time: Utc::now().timestamp_millis() as u64,
         secondary_exposures,
     }
