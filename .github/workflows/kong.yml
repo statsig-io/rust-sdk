@@ -18,6 +18,13 @@ jobs:
         run: |
           git clone https://${{ secrets.KONG_REPO_PAT }}@github.com/statsig-io/kong.git
 
+      - name: Get Latest Rust SDK
+        run: |
+          cd kong/bridges/rust-server
+          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
+        env:
+          repo_pat: ${{ secrets.KONG_REPO_PAT }}
+
       - name: Setup Rust
         run: rustup toolchain install stable --profile minimal
 
@@ -42,10 +49,9 @@ jobs:
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         run: echo "No Cache"
 
-      - name: Run cargo check
+      - name: Run cargo build
         run: |
           cd kong/bridges/rust-server
-          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
           cargo build
         env:
           repo_pat: ${{ secrets.KONG_REPO_PAT }}
