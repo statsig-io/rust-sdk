@@ -18,16 +18,8 @@ jobs:
         run: |
           git clone https://${{ secrets.KONG_REPO_PAT }}@github.com/statsig-io/kong.git
 
-      # - name: Update local toolchain
-      #   run: |
-      #     rustup update
-      #     rustup component add clippy
-      #     rustup install nightly
-      - run: rustup toolchain install stable --profile minimal
-
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
-        id: cargo-cache
+      - name: Setup Rust
+        run: rustup toolchain install stable --profile minimal
 
       - name: Toolchain info
         run: |
@@ -35,12 +27,12 @@ jobs:
           rustc --version
           cargo clippy --version
 
-      # - name: Cache Cargo
-      #   id: cargo-cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: kong/bridges/rust-server/target
-      #     key: ${{ runner.os }}-rust-cache
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        id: cargo-cache
+        with:
+          workspaces: |
+            kong/bridges/rust-server
 
       - name: Cache Hit
         if: steps.cargo-cache.outputs.cache-hit == 'true'
