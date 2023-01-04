@@ -25,7 +25,7 @@ impl StatsigNetwork {
             secret: secret_key.to_string(),
             base_api: options.api_override.clone(),
             statsig_metadata: json!(HashMap::from([
-                ("sdkType".to_string(), "".to_string()),
+                ("sdkType".to_string(), "rust-server".to_string()),
                 ("sdkVersion".to_string(), VERSION.to_string())
             ])),
         }
