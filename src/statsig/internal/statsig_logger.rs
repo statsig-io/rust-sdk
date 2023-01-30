@@ -17,6 +17,7 @@ pub struct StatsigLogger {
     max_queue_size: usize,
     flush_interval_ms: u32,
     bg_thread_handle: Option<JoinHandle<()>>,
+    running_jobs: Arc<RwLock<Vec<JoinHandle<()>>>>,
 }
 
 impl StatsigLogger {
@@ -27,6 +28,7 @@ impl StatsigLogger {
             events: Arc::from(RwLock::from(vec![])),
             max_queue_size: options.logger_max_queue_size as usize,
             flush_interval_ms: options.logger_flush_interval_ms,
+            running_jobs: Arc::from(RwLock::from(vec![])),
             bg_thread_handle: None,
         };
         inst.spawn_bg_thread();
@@ -48,10 +50,15 @@ impl StatsigLogger {
     pub fn flush(&self) {
         let events = self.events.clone();
         let network = self.network.clone();
-        
-        self.runtime_handle.spawn(async move {
-            Self::flush_impl(&network, &events).await
-        });
+
+        if let Some(mut lock) = self.running_jobs.write().ok() {
+            // Clear any finished jobs
+            lock.retain(|x| !x.is_finished());
+
+            lock.push(self.runtime_handle.spawn(async move {
+                Self::flush_impl(&network, &events).await
+            }));
+        }
     }
 
     pub fn flush_blocking(&self) {
@@ -59,10 +66,15 @@ impl StatsigLogger {
         let network = self.network.clone();
 
         self.runtime_handle.block_on(async move {
+            if let Some(mut t) = self.running_jobs.clone().write().ok() {
+                for handle in t.iter_mut() {
+                    let _ = handle.await;
+                }
+            }
             Self::flush_impl(&network, &events).await;
         });
     }
-    
+
     async fn flush_impl(network: &StatsigNetwork, events: &RwLock<Vec<StatsigEventInternal>>) {
         let count = match events.read().ok() {
             Some(e) => e.len(),
@@ -70,7 +82,6 @@ impl StatsigLogger {
         };
 
         let mut local_events = None;
-        
         if count != 0 {
             if let Some(mut lock) = events.write().ok() {
                 local_events = Some(replace(&mut *lock, Vec::new()));
@@ -79,7 +90,7 @@ impl StatsigLogger {
         }
 
         if let Some(local_events) = local_events {
-            network.send_events(local_events).await;
+            let _ = network.send_events(local_events).await;
         }
     }
 
