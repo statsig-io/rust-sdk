@@ -25,7 +25,7 @@ impl StatsigNetwork {
             secret: secret_key.to_string(),
             base_api: options.api_override.clone(),
             statsig_metadata: json!(HashMap::from([
-                ("sdkType".to_string(), "".to_string()),
+                ("sdkType".to_string(), "rust-server".to_string()),
                 ("sdkVersion".to_string(), VERSION.to_string())
             ])),
         }
@@ -50,16 +50,13 @@ impl StatsigNetwork {
         }
     }
 
-    pub async fn send_events(&self, events: Vec<StatsigEventInternal>) {
+    pub async fn send_events(&self, events: Vec<StatsigEventInternal>) -> Option<Response> {
         let mut body = HashMap::from([
             ("events", json!(events))
         ]);
 
-        match self.make_request("log_event", &mut body)
-            .await.ok() {
-            Some(x) => x,
-            None => return
-        };
+        return self.make_request("log_event", &mut body)
+            .await.ok();
     }
 
     async fn make_request(&self, endpoint: &str, body: &mut HashMap<&str, Value>) -> Result<Response, Error> {
