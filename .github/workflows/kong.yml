@@ -9,49 +9,28 @@ on:
   push:
     branches: [main]
 
+env:
+  test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
+  test_client_key: ${{ secrets. KONG_CLIENT_SDK_KEY }}
+  repo_pat: ${{ secrets.KONG_FINE_GRAINED_REPO_PAT }}
+  FORCE_COLOR: true
+
 jobs:
   KONG:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - name: Get KONG
-        run: |
-          git clone https://${{ secrets.KONG_REPO_PAT }}@github.com/statsig-io/kong.git
+        run: git clone https://oauth2:$repo_pat@github.com/statsig-io/kong.git .
 
-      - name: Get Latest Rust SDK
-        run: |
-          cd kong/bridges/rust-server
-          ./clone-repo.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
-        env:
-          repo_pat: ${{ secrets.KONG_REPO_PAT }}
+      - name: Install Deps
+        run: npm install
 
-      - name: Setup Rust
-        run: rustup toolchain install stable --profile minimal
+      - name: Setup Rust SDK
+        run: npm run kong -- setup rust -v
 
-      - name: Toolchain info
-        run: |
-          cargo --version --verbose
-          rustc --version
-          cargo clippy --version
-
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            kong/bridges/rust-server
-
-      - name: Run cargo build
-        run: |
-          cd kong/bridges/rust-server
-          cargo build
-        env:
-          repo_pat: ${{ secrets.KONG_REPO_PAT }}
+      - name: Build Bridge Image
+        run: npm run kong -- build rust -v
 
       - name: Run Tests
-        run: |
-          cd kong
-          npm install
-          FORCE_COLOR=true npm run kong -- test rust -w -v -r
-        env:
-          test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
-          test_client_key: ${{ secrets.KONG_CLIENT_SDK_KEY }}
+        run: npm run kong -- test rust -v -r
