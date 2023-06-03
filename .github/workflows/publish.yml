@@ -1,24 +1,32 @@
 name: Publish
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
+    types:
+      - closed
 
 jobs:
-  build:
-    if: "contains(github.event.head_commit.message, '[release]')"
+  publish:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.head_ref, 'releases/')
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - run: |
+          echo The PR was merged
 
-      - name: Set up Rust
-        uses: actions/setup-rust@v1
+  # build:
+  #   if: "contains(github.event.head_commit.message, '[release]')"
+  #   runs-on: ubuntu-latest
 
-      - name: Build Library
-        run: cargo build --release
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v3
+
+  #     - name: Set up Rust
+  #       uses: actions/setup-rust@v1
+
+  #     - name: Build Library
+  #       run: cargo build --release
