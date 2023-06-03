@@ -14,14 +14,16 @@ jobs:
       startsWith(github.head_ref, 'releases/')
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo The PR was NOT merged ${{ github.event.pull_request.title }}
+      - name: Get Title
+        id: get-title
+        run: |
+          input="${{ github.event.pull_request.title }}"; \
+          remove="[release] "; \
+          echo title="${input#$remove}" >> "$GITHUB_OUTPUT"
 
-      # - uses: avakar/tag-and-release@v1
-      #   with:
-      #     tag_name: ${{ ... }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Echo extracted title
+        run: |
+          echo "${{ steps.get-title.outputs.title }}"
 
   # build:
   #   if: "contains(github.event.head_commit.message, '[release]')"
