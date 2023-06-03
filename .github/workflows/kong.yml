@@ -1,13 +1,13 @@
 name: KONG
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 0/4 * * *"
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 0/4 * * *"
+#   pull_request:
+#     branches: [main]
+#   push:
+#     branches: [main]
 
 env:
   test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
