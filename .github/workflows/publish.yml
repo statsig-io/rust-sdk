@@ -7,54 +7,13 @@ on:
     types:
       - closed
 
-env:
-  public_repo: ${{ secrets.PUBLIC_SDK_REPO }}
-
 jobs:
   publish:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.head_ref, 'releases/')
     runs-on: ubuntu-latest
     steps:
       - uses: statsig-io/statsig-publish-sdk-action@v1.2
         with:
-          gh-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Get Title
-      #   id: get-title
-      #   run: |
-      #     input="${{ github.event.pull_request.title }}"; \
-      #     remove="\[release\] "; \
-      #     echo title="${input#$remove}" >> "$GITHUB_OUTPUT"
-
-      # - name: Get Version
-      #   id: get-version
-      #   run: |
-      #     input="${{ steps.get-title.outputs.title }}"; \
-      #     echo title="${input%% *}" >>  "$GITHUB_OUTPUT"
-
-      # - name: Push to Public
-      #   run: |
-      #     git remote add public https://github.com/statsig-io/rust-sdk.git
-      #     git push public main
-
-      # - uses: avakar/tag-and-release@v1
-      #   with:
-      #     tag_name: ${{ steps.get-version.outputs.title }}
-      #     release_name: ${{ steps.get-title.outputs.title }}
-      #     body: ${{ github.event.pull_request.body }}
-      #     draft: true
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # build:
-  #   if: "contains(github.event.head_commit.message, '[release]')"
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v3
-
-  #     - name: Set up Rust
-  #       uses: actions/setup-rust@v1
-
-  #     - name: Build Library
-  #       run: cargo build --release
+          gh-token: ${{ secrets.KONG_FINE_GRAINED_REPO_PAT }}
