@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: statsig-io/statsig-publish-sdk-action@v1.2
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Get Title
       #   id: get-title
