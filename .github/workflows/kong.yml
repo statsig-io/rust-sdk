@@ -5,9 +5,9 @@ on:
   schedule:
     - cron: "0 0/4 * * *"
   pull_request:
-    branches: [main]
+    branches: [ main ]
   push:
-    branches: [main]
+    branches: [ main ]
 
 env:
   test_api_key: ${{ secrets.KONG_SERVER_SDK_KEY }}
@@ -32,5 +32,8 @@ jobs:
       - name: Build Bridge Image
         run: npm run kong -- build rust -v
 
-      - name: Run Tests
-        run: npm run kong -- test rust -v -r
+      - name: Run Tests [Non Rulesets]
+        run: npm run kong -- test rust -r -x rulesets
+        
+      - name: Run Tests [Rulesets Only]
+        run: npm run kong -- test rust -r -f rulesets

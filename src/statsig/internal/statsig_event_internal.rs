@@ -37,7 +37,7 @@ pub(crate) fn make_gate_exposure(
         ])),
     };
 
-    finalize_with_exposures(user, event, statsig_environment, eval_result.secondary_exposures.clone())
+    finalize_with_cloned_or_empty_exposures(user, event, statsig_environment, &eval_result.secondary_exposures)
 }
 
 pub(crate) fn make_config_exposure(
@@ -54,7 +54,7 @@ pub(crate) fn make_config_exposure(
         ])),
     };
 
-    finalize_with_exposures(user, event, statsig_environment, eval_result.secondary_exposures.clone())
+    finalize_with_cloned_or_empty_exposures(user, event, statsig_environment, &eval_result.secondary_exposures)
 }
 
 pub(crate) fn make_layer_exposure(
@@ -62,21 +62,20 @@ pub(crate) fn make_layer_exposure(
     layer_name: &str,
     parameter_name: &str,
     eval_result: &EvalResult,
-    statsig_environment: &StatsigEnvironment
+    statsig_environment: &StatsigEnvironment,
 ) -> StatsigEventInternal {
-    
     let mut exposures = &eval_result.undelegated_secondary_exposures;
     let mut allocated_experiment = None;
     let is_explicit = match &eval_result.explicit_parameters {
         Some(explicit_params) => explicit_params.iter().any(|x| x == parameter_name),
         _ => false
     };
-    
+
     if is_explicit {
         allocated_experiment = eval_result.config_delegate.clone();
         exposures = &eval_result.secondary_exposures;
     }
-    
+
     let event = StatsigEvent {
         event_name: "statsig::layer_exposure".to_string(),
         value: None,
@@ -89,16 +88,39 @@ pub(crate) fn make_layer_exposure(
         ])),
     };
 
-    finalize_with_exposures(user, event, statsig_environment, exposures.clone())
+    finalize_with_cloned_or_empty_exposures(user, event, statsig_environment, exposures)
 }
 
-pub(crate) fn finalize_event(user: &StatsigUser, event: StatsigEvent, statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
-    finalize_with_exposures(user, event, statsig_environment, None)
+pub(crate) fn finalize_event(
+    user: &StatsigUser,
+    event: StatsigEvent,
+    statsig_environment: &StatsigEnvironment,
+) -> StatsigEventInternal {
+    finalize_with_optional_exposures(user, event, statsig_environment, None)
 }
 
-fn finalize_with_exposures(user: &StatsigUser, event: StatsigEvent, statsig_environment: &StatsigEnvironment, secondary_exposures: Option<Vec<HashMap<String, String>>>) -> StatsigEventInternal {
-    let mut user_copy = user.clone();
+fn finalize_with_cloned_or_empty_exposures(
+    user: &StatsigUser,
+    event: StatsigEvent,
+    statsig_environment: &StatsigEnvironment,
+    secondary_exposures: &Option<Vec<HashMap<String, String>>>,
+) -> StatsigEventInternal {
+    let exposures = match secondary_exposures {
+        Some(expo) => expo.clone(),
+        None => vec![]
+    };
     
+    finalize_with_optional_exposures(user, event, statsig_environment, Some(exposures))
+}
+
+fn finalize_with_optional_exposures(
+    user: &StatsigUser,
+    event: StatsigEvent,
+    statsig_environment: &StatsigEnvironment,
+    secondary_exposures: Option<Vec<HashMap<String, String>>>,
+) -> StatsigEventInternal {
+    let mut user_copy = user.clone();
+
     if let Some(env) = statsig_environment {
         user_copy.statsig_environment = Some(env.clone());
     }
@@ -112,3 +134,4 @@ fn finalize_with_exposures(user: &StatsigUser, event: StatsigEvent, statsig_envi
         secondary_exposures,
     }
 }
+

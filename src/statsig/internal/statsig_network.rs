@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use http::HeaderMap;
 use reqwest::{Client, Error, Response};
 use serde_json::{json, Value};
+use crate::statsig::internal::data_types::APIDownloadedConfigsResponse;
 
 use crate::StatsigOptions;
 use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
-
-use super::data_types::APIDownloadedConfigs;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -31,12 +30,11 @@ impl StatsigNetwork {
         }
     }
 
-    pub async fn download_config_specs(&self, since_time: u64) -> Option<APIDownloadedConfigs> {
+    pub async fn download_config_specs(&self, since_time: u64) -> Option<APIDownloadedConfigsResponse> {
         let mut body = HashMap::new();
         body.insert("sinceTime", json!(since_time));
 
         let res = self.make_request("download_config_specs", &mut body).await.ok()?;
-
         if res.status() != 200 {
             return None;
         }

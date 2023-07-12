@@ -78,20 +78,22 @@ impl StatsigDriver {
     }
 
     pub fn check_gate(&self, user: &StatsigUser, gate_name: &str) -> bool {
-        let eval_result = self.evaluator.check_gate(user, gate_name);
+        let normalized_user = &self.get_normalized_user_copy(user);
+        let eval_result = self.evaluator.check_gate(normalized_user, gate_name);
 
         self.logger.enqueue(make_gate_exposure(
-            user, gate_name, &eval_result, &self.options.environment,
+            normalized_user, gate_name, &eval_result, &self.options.environment,
         ));
 
         return eval_result.bool_value;
     }
 
     pub fn get_config(&self, user: &StatsigUser, config_name: &str) -> DynamicConfig {
-        let eval_result = self.evaluator.get_config(user, config_name);
+        let normalized_user = &self.get_normalized_user_copy(user);
+        let eval_result = self.evaluator.get_config(normalized_user, config_name);
 
         self.logger.enqueue(make_config_exposure(
-            user, config_name, &eval_result, &self.options.environment,
+            normalized_user, config_name, &eval_result, &self.options.environment,
         ));
 
         let mut value = HashMap::from([]);
@@ -105,7 +107,8 @@ impl StatsigDriver {
     }
 
     pub fn get_layer(&self, user: &StatsigUser, layer_name: &str) -> Layer {
-        let eval_result = self.evaluator.get_layer(user, layer_name);
+        let normalized_user = self.get_normalized_user_copy(user);
+        let eval_result = self.evaluator.get_layer(&normalized_user, layer_name);
 
         let mut value = HashMap::from([]);
         if let Some(ref json_value) = eval_result.json_value {
@@ -119,7 +122,7 @@ impl StatsigDriver {
             value,
             rule_id: eval_result.rule_id.clone(),
             log_data: LayerLogData {
-                user: user.clone(),
+                user: normalized_user,
                 eval_result,
             },
         };
@@ -141,6 +144,14 @@ impl StatsigDriver {
             &log_data.eval_result,
             &self.options.environment,
         ));
+    }
+    
+    fn get_normalized_user_copy(&self, user: &StatsigUser) -> StatsigUser {
+        let mut normalized_user = user.clone();
+        if self.options.environment != None {
+            normalized_user.statsig_environment = self.options.environment.clone();    
+        }
+        normalized_user
     }
 
     #[doc(hidden)]

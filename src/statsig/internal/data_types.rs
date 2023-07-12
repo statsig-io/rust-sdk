@@ -43,7 +43,7 @@ pub struct APICondition {
 }
 
 #[derive(Deserialize)]
-pub struct APIDownloadedConfigs {
+pub struct APIDownloadedConfigsWithUpdates {
     pub feature_gates: Vec<APISpec>,
     pub dynamic_configs: Vec<APISpec>,
     pub layer_configs: Vec<APISpec>,
@@ -51,5 +51,17 @@ pub struct APIDownloadedConfigs {
     pub layers: Option<HashMap<String, Vec<String>>>,
     pub has_updates: bool,
     pub time: Number
+}
+
+#[derive(Deserialize)]
+pub struct APIDownloadedConfigsNoUpdates {
+    pub has_updates: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum APIDownloadedConfigsResponse {
+    WithUpdates(APIDownloadedConfigsWithUpdates),
+    NoUpdates(APIDownloadedConfigsNoUpdates),
 }
 

@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
+use crate::statsig::internal::data_types::APIDownloadedConfigsResponse::{NoUpdates, WithUpdates};
 
 use crate::StatsigOptions;
 
@@ -68,11 +69,10 @@ impl StatsigStore {
             _ => 0
         };
         
-        let downloaded_configs = network.download_config_specs(last_sync_time).await?;
-
-        if !downloaded_configs.has_updates {
-            return None;
-        }
+        let downloaded_configs = match network.download_config_specs(last_sync_time).await? { 
+            WithUpdates(r) => r,
+            NoUpdates(..) => return None
+        };
 
         let mut new_specs = Specs::new();
         for feature_gate in downloaded_configs.feature_gates {
