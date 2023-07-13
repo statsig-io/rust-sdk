@@ -2,10 +2,10 @@ name: Release Bot
 
 on:
   pull_request:
-    types: [ opened, reopened, closed ]
-    branches: [ main, stable ]
+    types: [opened, reopened, closed]
+    branches: [main, stable]
   release:
-    types: [ released, prereleased ]
+    types: [released, prereleased]
 
 jobs:
   run:
@@ -15,3 +15,4 @@ jobs:
       - uses: statsig-io/statsig-publish-sdk-action@main
         with:
           kong-private-key: ${{ secrets.KONG_GH_APP_PRIVATE_KEY }}
+          cargo-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
