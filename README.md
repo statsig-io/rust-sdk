@@ -1,5 +1,6 @@
 # Statsig for Rust
 
+[![Test](https://github.com/statsig-io/rust-sdk/actions/workflows/kong.yml/badge.svg)](https://github.com/statsig-io/rust-sdk/actions/workflows/kong.yml)
 
 ```rust
 use statsig::{Statsig, StatsigUser};
