@@ -47,7 +47,7 @@ impl StatsigDriver {
             network.clone(),
             &options)
         );
-        let evaluator = StatsigEvaluator::new(store.clone());
+        let evaluator = StatsigEvaluator::new(store.clone(), &options);
 
 
         return Ok(

@@ -6,6 +6,7 @@ pub struct StatsigOptions {
     pub rulesets_sync_interval_ms: u32,
     pub logger_max_queue_size: u32,
     pub logger_flush_interval_ms: u32,
+    pub disable_user_agent_support: bool,
 }
 
 impl StatsigOptions {
@@ -16,6 +17,7 @@ impl StatsigOptions {
             rulesets_sync_interval_ms: 10_000,
             logger_max_queue_size: 500,
             logger_flush_interval_ms: 60_000,
+            disable_user_agent_support: false
         }
     }
 }

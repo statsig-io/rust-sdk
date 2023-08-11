@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use serde_json::Value::{Null};
 use crate::statsig::internal::evaluation::eval_helpers::{compare_str_with_regex, compare_time, value_to_string};
 
-use crate::{StatsigUser, unwrap_or_return};
+use crate::{StatsigOptions, StatsigUser, unwrap_or_return};
 
 use super::country_lookup::CountryLookup;
 use super::eval_helpers::{compare_numbers, compare_strings_in_array, compare_versions, compute_user_hash};
@@ -22,11 +22,11 @@ pub struct StatsigEvaluator {
 }
 
 impl StatsigEvaluator {
-    pub fn new(spec_store: Arc<StatsigStore>) -> StatsigEvaluator {
+    pub fn new(spec_store: Arc<StatsigStore>, options: &StatsigOptions) -> StatsigEvaluator {
         StatsigEvaluator {
             spec_store,
             country_lookup: CountryLookup::new(),
-            ua_parser: UserAgentParser::new(),
+            ua_parser: UserAgentParser::new(options.disable_user_agent_support),
         }
     }
 
