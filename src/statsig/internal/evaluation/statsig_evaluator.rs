@@ -7,6 +7,7 @@ use serde_json::Value::{Null};
 use crate::statsig::internal::evaluation::eval_helpers::{compare_str_with_regex, compare_time, value_to_string};
 
 use crate::{StatsigOptions, StatsigUser, unwrap_or_return};
+use crate::statsig::internal::evaluation::client_init_response_formatter::ClientInitResponseFormatter;
 
 use super::country_lookup::CountryLookup;
 use super::eval_helpers::{compare_numbers, compare_strings_in_array, compare_versions, compute_user_hash};
@@ -16,7 +17,8 @@ use super::super::statsig_store::StatsigStore;
 use super::ua_parser::UserAgentParser;
 
 pub struct StatsigEvaluator {
-    spec_store: Arc<StatsigStore>,
+    pub spec_store: Arc<StatsigStore>,
+
     country_lookup: CountryLookup,
     ua_parser: UserAgentParser,
 }
@@ -41,7 +43,15 @@ impl StatsigEvaluator {
     pub fn get_layer(&self, user: &StatsigUser, layer_name: &str) -> EvalResult {
         self.eval(user, layer_name, "layer")
     }
-    
+
+    pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
+        ClientInitResponseFormatter::get_formatted_response(
+            |user: &StatsigUser, spec: &APISpec| self.eval_spec(user, Some(spec)),
+            user,
+            &self.spec_store,
+        )
+    }
+
     fn eval(&self, user: &StatsigUser, spec_name: &str, spec_type: &str) -> EvalResult {
         self.spec_store.use_spec(spec_type, spec_name, |spec| {
             self.eval_spec(user, spec)
@@ -53,7 +63,7 @@ impl StatsigEvaluator {
             Some(spec) => spec,
             _ => return EvalResult::default()
         };
-        
+
         if !spec.enabled {
             return EvalResult {
                 json_value: Some(spec.default_value.clone()),
@@ -78,7 +88,7 @@ impl StatsigEvaluator {
             if !result.bool_value {
                 continue;
             }
-            
+
             if let Some(delegated_result) = self.eval_delegate(user, rule, &exposures) {
                 return delegated_result;
             }
@@ -93,6 +103,7 @@ impl StatsigEvaluator {
                 rule_id: result.rule_id,
                 secondary_exposures: Some(exposures.clone()),
                 undelegated_secondary_exposures: Some(exposures),
+                is_experiment_group: result.is_experiment_group,
                 ..EvalResult::default()
             };
         }
@@ -133,7 +144,7 @@ impl StatsigEvaluator {
             ..EvalResult::default()
         }
     }
-    
+
     fn eval_delegate(&self, user: &StatsigUser, rule: &APIRule, exposures: &Vec<HashMap<String, String>>) -> Option<EvalResult> {
         let delegate = unwrap_or_return!(&rule.config_delegate, None);
         self.spec_store.use_spec("config", delegate, |spec| {
@@ -147,7 +158,7 @@ impl StatsigEvaluator {
             if let Some(mut result_exposures) = result.secondary_exposures {
                 sec_expo.append(&mut result_exposures);
             }
-            
+
             let spec = unwrap_or_return!(spec, None);
             result.explicit_parameters = spec.explicit_parameters.clone();
             result.secondary_exposures = Some(sec_expo);

@@ -13,7 +13,11 @@ pub struct APISpec {
     pub enabled: bool,
     pub rules: Vec<APIRule>,
     pub id_type: String,
-    pub explicit_parameters: Option<Vec<String>>
+    pub explicit_parameters: Option<Vec<String>>,
+    pub entity: String,
+    pub is_experiment_active: Option<bool>,
+    pub has_shared_params: Option<bool>,
+    pub is_active: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -27,7 +31,7 @@ pub struct APIRule {
     pub conditions: Vec<APICondition>,
     pub id_type: String,
     pub group_name: String,
-    pub config_delegate: Option<String>
+    pub config_delegate: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -50,7 +54,7 @@ pub struct APIDownloadedConfigsWithUpdates {
     pub id_lists: Option<HashMap<String, bool>>,
     pub layers: Option<HashMap<String, Vec<String>>>,
     pub has_updates: bool,
-    pub time: Number
+    pub time: Number,
 }
 
 #[derive(Deserialize)]

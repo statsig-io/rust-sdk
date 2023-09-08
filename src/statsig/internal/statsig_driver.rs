@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use serde_json::from_value;
+use serde_json::{from_value, Value};
 use tokio::runtime::{Builder, Runtime};
 
 use crate::{LayerLogData, StatsigEvent, StatsigOptions};
@@ -134,6 +134,11 @@ impl StatsigDriver {
             event,
             &self.options.environment,
         ))
+    }
+
+    pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
+        let normalized_user = self.get_normalized_user_copy(user);
+        return self.evaluator.get_client_initialize_response(&normalized_user);
     }
 
     pub(crate) fn log_layer_parameter_exposure(&self, layer: &Layer, parameter_name: &str, log_data: &LayerLogData) {

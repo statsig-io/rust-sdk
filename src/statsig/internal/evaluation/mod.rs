@@ -1,6 +1,9 @@
 pub use eval_result::EvalResult;
 pub use statsig_evaluator::StatsigEvaluator;
 
+pub mod specs;
+
+mod client_init_response_formatter;
 mod country_lookup;
 mod eval_helpers;
 mod eval_result;

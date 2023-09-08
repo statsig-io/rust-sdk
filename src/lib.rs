@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use lazy_static::lazy_static;
+use serde_json::Value;
 
 use statsig::internal::StatsigDriver;
 use statsig::statsig_error::StatsigError;
@@ -95,6 +96,12 @@ impl Statsig {
             Err(e) => Some(e),
             _ => None
         }
+    }
+    
+    pub fn get_client_initialize_response(user: &StatsigUser) -> Result<Value, StatsigError> {
+        Self::use_driver(|driver| {
+            Ok(driver.get_client_initialize_response(user))
+        })
     }
 
     pub(crate) fn log_layer_parameter_exposure(layer: &Layer, parameter_name: &str, log_data: &LayerLogData) {

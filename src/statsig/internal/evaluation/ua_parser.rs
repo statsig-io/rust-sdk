@@ -42,7 +42,7 @@ impl UserAgentParser {
         let lock = unwrap_or_return!(self.parser.read().ok(), Null);
         let parser = unwrap_or_return!(&*lock, Null);
 
-        fn get_version_string(major: Option<Cow<str>>, minor: Option<Cow<str>>, patch: Option<Cow<str>>) -> Value {
+        fn get_json_version(major: Option<Cow<str>>, minor: Option<Cow<str>>, patch: Option<Cow<str>>) -> Value {
             let fallback = Cow::Borrowed("0");
             json!(format!("{}.{}.{}", 
                 major.unwrap_or(fallback.clone()), 
@@ -56,12 +56,12 @@ impl UserAgentParser {
             "os_name" | "osname" => json!(parsed.os.family),
             "os_version" | "osversion" => {
                 let os = parsed.os;
-                get_version_string(os.major, os.minor, os.patch)
+                get_json_version(os.major, os.minor, os.patch)
             }
             "browser_name" | "browsername" => json!(parsed.user_agent.family),
             "browser_version" | "browserversion" => {
                 let ua = parsed.user_agent;
-                get_version_string(ua.major, ua.minor, ua.patch)
+                get_json_version(ua.major, ua.minor, ua.patch)
             }
             _ => Null
         }

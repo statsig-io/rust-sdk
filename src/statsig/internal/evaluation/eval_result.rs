@@ -9,7 +9,8 @@ pub struct EvalResult {
     pub secondary_exposures: Option<Vec<HashMap<String, String>>>,
     pub undelegated_secondary_exposures: Option<Vec<HashMap<String, String>>>,
     pub explicit_parameters: Option<Vec<String>>,
-    pub config_delegate: Option<String>
+    pub config_delegate: Option<String>,
+    pub is_experiment_group: bool,
 }
 
 impl EvalResult {
@@ -37,7 +38,8 @@ impl EvalResult {
             secondary_exposures: None,
             undelegated_secondary_exposures: None,
             explicit_parameters: None,
-            config_delegate: None
+            config_delegate: None,
+            is_experiment_group: false
         }
     }
 }
