@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use serde_json::{Value, from_value};
-use serde::de::DeserializeOwned;
 use crate::statsig::internal::EvalResult;
 use crate::{Statsig, StatsigUser};
+use serde::de::DeserializeOwned;
+use serde_json::{from_value, Value};
+use std::collections::HashMap;
 
 pub struct Layer {
     pub name: String,
     pub rule_id: String,
-    
+
     pub(crate) value: HashMap<String, Value>,
     pub(crate) log_data: LayerLogData,
 }
@@ -27,8 +27,7 @@ impl Layer {
     }
 }
 
-pub struct  LayerLogData {
+pub struct LayerLogData {
     pub(crate) eval_result: EvalResult,
     pub(crate) user: StatsigUser,
 }
-

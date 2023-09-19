@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::sync::{Arc, RwLock};
 
-use serde_json::{json, Value};
 use serde_json::Value::Null;
+use serde_json::{json, Value};
 use uaparser::{Parser, UserAgentParser as ExtUserAgentParser};
 
-use crate::{StatsigUser, unwrap_or_return};
+use crate::{unwrap_or_return, StatsigUser};
 
 pub struct UserAgentParser {
     parser: Arc<RwLock<Option<ExtUserAgentParser>>>,
@@ -27,12 +27,12 @@ impl UserAgentParser {
     pub fn get_value_from_user_agent(&self, user: &StatsigUser, field: &Option<String>) -> Value {
         let field_lowered = match field {
             Some(f) => f.to_lowercase(),
-            _ => return Null
+            _ => return Null,
         };
 
         let user_agent = match &user.user_agent {
             Some(ua) => ua,
-            _ => return Null
+            _ => return Null,
         };
 
         if user_agent.len() > 1000 {
@@ -42,13 +42,18 @@ impl UserAgentParser {
         let lock = unwrap_or_return!(self.parser.read().ok(), Null);
         let parser = unwrap_or_return!(&*lock, Null);
 
-        fn get_json_version(major: Option<Cow<str>>, minor: Option<Cow<str>>, patch: Option<Cow<str>>) -> Value {
+        fn get_json_version(
+            major: Option<Cow<str>>,
+            minor: Option<Cow<str>>,
+            patch: Option<Cow<str>>,
+        ) -> Value {
             let fallback = Cow::Borrowed("0");
-            json!(format!("{}.{}.{}", 
-                major.unwrap_or(fallback.clone()), 
-                minor.unwrap_or(fallback.clone()), 
-                patch.unwrap_or(fallback.clone()))
-            )
+            json!(format!(
+                "{}.{}.{}",
+                major.unwrap_or(fallback.clone()),
+                minor.unwrap_or(fallback.clone()),
+                patch.unwrap_or(fallback.clone())
+            ))
         }
 
         let parsed = parser.parse(user_agent);
@@ -63,7 +68,7 @@ impl UserAgentParser {
                 let ua = parsed.user_agent;
                 get_json_version(ua.major, ua.minor, ua.patch)
             }
-            _ => Null
+            _ => Null,
         }
     }
 
@@ -71,7 +76,10 @@ impl UserAgentParser {
         let parser = self.parser.clone();
         std::thread::spawn(move || {
             let mut lock = unwrap_or_return!(parser.write().ok(), ());
-            *lock = Some(ExtUserAgentParser::from_bytes(include_bytes!("resources/ua_parser_regex.yaml")).expect("ua_parser"));
+            *lock = Some(
+                ExtUserAgentParser::from_bytes(include_bytes!("resources/ua_parser_regex.yaml"))
+                    .expect("ua_parser"),
+            );
         });
     }
 }

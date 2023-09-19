@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
+use crate::statsig::internal::data_types::APIDownloadedConfigsResponse;
 use http::HeaderMap;
 use reqwest::{Client, Error, Response};
 use serde_json::{json, Value};
-use crate::statsig::internal::data_types::APIDownloadedConfigsResponse;
 
-use crate::StatsigOptions;
 use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
+use crate::StatsigOptions;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -30,11 +30,17 @@ impl StatsigNetwork {
         }
     }
 
-    pub async fn download_config_specs(&self, since_time: u64) -> Option<APIDownloadedConfigsResponse> {
+    pub async fn download_config_specs(
+        &self,
+        since_time: u64,
+    ) -> Option<APIDownloadedConfigsResponse> {
         let mut body = HashMap::new();
         body.insert("sinceTime", json!(since_time));
 
-        let res = self.make_request("download_config_specs", &mut body).await.ok()?;
+        let res = self
+            .make_request("download_config_specs", &mut body)
+            .await
+            .ok()?;
         if res.status() != 200 {
             return None;
         }
@@ -49,25 +55,31 @@ impl StatsigNetwork {
     }
 
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) -> Option<Response> {
-        let mut body = HashMap::from([
-            ("events", json!(events))
-        ]);
+        let mut body = HashMap::from([("events", json!(events))]);
 
-        return self.make_request("log_event", &mut body)
-            .await.ok();
+        return self.make_request("log_event", &mut body).await.ok();
     }
 
-    async fn make_request(&self, endpoint: &str, body: &mut HashMap<&str, Value>) -> Result<Response, Error> {
+    async fn make_request(
+        &self,
+        endpoint: &str,
+        body: &mut HashMap<&str, Value>,
+    ) -> Result<Response, Error> {
         let url = format!("{}/{}", self.base_api, endpoint);
 
         let mut headers = HeaderMap::new();
-        headers.insert("STATSIG-API-KEY", self.secret.parse().expect("statsig_api_key -> header"));
+        headers.insert(
+            "STATSIG-API-KEY",
+            self.secret.parse().expect("statsig_api_key -> header"),
+        );
 
         body.insert("statsigMetadata", self.statsig_metadata.clone());
 
-        self.client.post(url)
+        self.client
+            .post(url)
             .json(&body)
             .headers(headers)
-            .send().await
+            .send()
+            .await
     }
 }

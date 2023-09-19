@@ -9,7 +9,6 @@ pub struct CountryLookup {
     ip_ranges: Vec<i64>,
 }
 
-
 impl CountryLookup {
     pub fn new() -> Self {
         let bytes = include_bytes!("resources/ip_supalite.table");
@@ -66,7 +65,7 @@ impl CountryLookup {
     pub fn get_value_from_ip(&self, user: &StatsigUser, field: &Option<String>) -> Value {
         let unwrapped_field = match field {
             Some(f) => f.as_str(),
-            _ => return Null
+            _ => return Null,
         };
 
         if unwrapped_field != "country" {
@@ -75,12 +74,12 @@ impl CountryLookup {
 
         let ip = match &user.ip {
             Some(ip) => ip,
-            _ => return Null
+            _ => return Null,
         };
 
         match self.lookup(&ip) {
             Some(cc) => Value::String(cc),
-            _ => Null
+            _ => Null,
         }
     }
 

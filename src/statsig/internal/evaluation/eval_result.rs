@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub struct EvalResult {
     pub bool_value: bool,
@@ -39,7 +39,7 @@ impl EvalResult {
             undelegated_secondary_exposures: None,
             explicit_parameters: None,
             config_delegate: None,
-            is_experiment_group: false
+            is_experiment_group: false,
         }
     }
 }

@@ -5,17 +5,17 @@ use std::time::Duration;
 use serde_json::{from_value, Value};
 use tokio::runtime::{Builder, Runtime};
 
-use crate::{LayerLogData, StatsigEvent, StatsigOptions};
 use crate::statsig::internal::statsig_event_internal::{make_config_exposure, make_layer_exposure};
 use crate::StatsigUser;
+use crate::{LayerLogData, StatsigEvent, StatsigOptions};
 
-use super::DynamicConfig;
 use super::evaluation::StatsigEvaluator;
-use super::Layer;
 use super::statsig_event_internal::{finalize_event, make_gate_exposure};
 use super::statsig_logger::StatsigLogger;
 use super::statsig_network::StatsigNetwork;
 use super::statsig_store::StatsigStore;
+use super::DynamicConfig;
+use super::Layer;
 
 pub struct StatsigDriver {
     pub secret_key: String,
@@ -32,34 +32,29 @@ impl StatsigDriver {
             .worker_threads(3)
             .thread_name("statsig")
             .enable_all()
-            .build() {
+            .build()
+        {
             Ok(rt) => rt,
-            Err(e) => return Err(e)
+            Err(e) => return Err(e),
         };
 
         let network = Arc::from(StatsigNetwork::new(secret_key, &options));
-        let logger = StatsigLogger::new(
-            runtime.handle(),
-            network.clone(),
-            &options);
+        let logger = StatsigLogger::new(runtime.handle(), network.clone(), &options);
         let store = Arc::from(StatsigStore::new(
             runtime.handle(),
             network.clone(),
-            &options)
-        );
+            &options,
+        ));
         let evaluator = StatsigEvaluator::new(store.clone(), &options);
 
-
-        return Ok(
-            StatsigDriver {
-                secret_key: secret_key.to_string(),
-                options,
-                runtime: Mutex::from(Some(runtime)),
-                store,
-                evaluator,
-                logger,
-            }
-        );
+        return Ok(StatsigDriver {
+            secret_key: secret_key.to_string(),
+            options,
+            runtime: Mutex::from(Some(runtime)),
+            store,
+            evaluator,
+            logger,
+        });
     }
 
     pub async fn initialize(&self) {
@@ -82,7 +77,10 @@ impl StatsigDriver {
         let eval_result = self.evaluator.check_gate(normalized_user, gate_name);
 
         self.logger.enqueue(make_gate_exposure(
-            normalized_user, gate_name, &eval_result, &self.options.environment,
+            normalized_user,
+            gate_name,
+            &eval_result,
+            &self.options.environment,
         ));
 
         return eval_result.bool_value;
@@ -93,7 +91,10 @@ impl StatsigDriver {
         let eval_result = self.evaluator.get_config(normalized_user, config_name);
 
         self.logger.enqueue(make_config_exposure(
-            normalized_user, config_name, &eval_result, &self.options.environment,
+            normalized_user,
+            config_name,
+            &eval_result,
+            &self.options.environment,
         ));
 
         let mut value = HashMap::from([]);
@@ -103,7 +104,11 @@ impl StatsigDriver {
             }
         }
 
-        return DynamicConfig { name: config_name.to_string(), value, rule_id: eval_result.rule_id };
+        return DynamicConfig {
+            name: config_name.to_string(),
+            value,
+            rule_id: eval_result.rule_id,
+        };
     }
 
     pub fn get_layer(&self, user: &StatsigUser, layer_name: &str) -> Layer {
@@ -129,19 +134,23 @@ impl StatsigDriver {
     }
 
     pub fn log_event(&self, user: &StatsigUser, event: StatsigEvent) {
-        self.logger.enqueue(finalize_event(
-            user,
-            event,
-            &self.options.environment,
-        ))
+        self.logger
+            .enqueue(finalize_event(user, event, &self.options.environment))
     }
 
     pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
         let normalized_user = self.get_normalized_user_copy(user);
-        return self.evaluator.get_client_initialize_response(&normalized_user);
+        return self
+            .evaluator
+            .get_client_initialize_response(&normalized_user);
     }
 
-    pub(crate) fn log_layer_parameter_exposure(&self, layer: &Layer, parameter_name: &str, log_data: &LayerLogData) {
+    pub(crate) fn log_layer_parameter_exposure(
+        &self,
+        layer: &Layer,
+        parameter_name: &str,
+        log_data: &LayerLogData,
+    ) {
         self.logger.enqueue(make_layer_exposure(
             &log_data.user,
             &layer.name,
@@ -150,11 +159,11 @@ impl StatsigDriver {
             &self.options.environment,
         ));
     }
-    
+
     fn get_normalized_user_copy(&self, user: &StatsigUser) -> StatsigUser {
         let mut normalized_user = user.clone();
         if self.options.environment != None {
-            normalized_user.statsig_environment = self.options.environment.clone();    
+            normalized_user.statsig_environment = self.options.environment.clone();
         }
         normalized_user
     }

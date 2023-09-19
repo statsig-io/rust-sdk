@@ -12,13 +12,12 @@ pub struct StatsigOptions {
 impl StatsigOptions {
     pub fn default() -> StatsigOptions {
         StatsigOptions {
-            environment:  None,
+            environment: None,
             api_override: "https://statsigapi.net/v1".to_string(),
             rulesets_sync_interval_ms: 10_000,
             logger_max_queue_size: 500,
             logger_flush_interval_ms: 60_000,
-            disable_user_agent_support: false
+            disable_user_agent_support: false,
         }
     }
 }
-

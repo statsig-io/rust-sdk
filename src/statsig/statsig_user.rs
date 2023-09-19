@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
+use std::collections::HashMap;
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +17,7 @@ pub struct StatsigUser {
     pub private_attributes: Option<HashMap<String, Value>>,
     #[serde(rename = "customIDs")]
     pub custom_ids: Option<HashMap<String, String>>,
-    
+
     pub(crate) statsig_environment: Option<HashMap<String, String>>,
 }
 
@@ -29,14 +28,14 @@ impl StatsigUser {
             ..Self::default()
         }
     }
-    
+
     pub fn with_custom_ids(custom_ids: HashMap<String, String>) -> Self {
         StatsigUser {
             custom_ids: Some(custom_ids),
             ..Self::default()
         }
     }
-    
+
     fn default() -> Self {
         StatsigUser {
             user_id: None,
@@ -49,7 +48,7 @@ impl StatsigUser {
             custom: None,
             private_attributes: None,
             custom_ids: None,
-            statsig_environment: None
+            statsig_environment: None,
         }
     }
 }

@@ -21,7 +21,11 @@ pub struct StatsigLogger {
 }
 
 impl StatsigLogger {
-    pub fn new(runtime_handle: &Handle, network: Arc<StatsigNetwork>, options: &StatsigOptions) -> Self {
+    pub fn new(
+        runtime_handle: &Handle,
+        network: Arc<StatsigNetwork>,
+        options: &StatsigOptions,
+    ) -> Self {
         let mut inst = Self {
             runtime_handle: runtime_handle.clone(),
             network,
@@ -55,9 +59,10 @@ impl StatsigLogger {
             // Clear any finished jobs
             lock.retain(|x| !x.is_finished());
 
-            lock.push(self.runtime_handle.spawn(async move {
-                Self::flush_impl(&network, &events).await
-            }));
+            lock.push(
+                self.runtime_handle
+                    .spawn(async move { Self::flush_impl(&network, &events).await }),
+            );
         }
     }
 
@@ -99,13 +104,11 @@ impl StatsigLogger {
         let network = self.network.clone();
         let interval = Duration::from_millis(self.flush_interval_ms as u64);
 
-        self.bg_thread_handle = Some(
-            self.runtime_handle.spawn(async move {
-                loop {
-                    Self::flush_impl(&network, &events).await;
-                    tokio::time::sleep(interval).await;
-                };
-            })
-        );
+        self.bg_thread_handle = Some(self.runtime_handle.spawn(async move {
+            loop {
+                Self::flush_impl(&network, &events).await;
+                tokio::time::sleep(interval).await;
+            }
+        }));
     }
 }

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::statsig::internal::data_types::APISpec;
+use std::collections::HashMap;
 
 pub struct Specs {
     pub last_sync_time: u64,
@@ -16,7 +16,7 @@ impl Specs {
             gates: HashMap::new(),
             configs: HashMap::new(),
             layers: HashMap::new(),
-            experiment_to_layer: HashMap::new()
+            experiment_to_layer: HashMap::new(),
         }
     }
 
