@@ -23,7 +23,7 @@ impl Layer {
             return value;
         }
 
-        return default;
+        default
     }
 }
 

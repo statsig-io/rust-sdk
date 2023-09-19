@@ -18,6 +18,6 @@ impl DynamicConfig {
             return value;
         }
 
-        return default;
+        default
     }
 }

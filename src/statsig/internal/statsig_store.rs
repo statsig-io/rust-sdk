@@ -34,7 +34,7 @@ impl StatsigStore {
             bg_thread_handle: None,
         };
         inst.spawn_bg_thread();
-        return inst;
+        inst
     }
 
     pub async fn download_config_specs(&self) -> Option<()> {
@@ -47,7 +47,7 @@ impl StatsigStore {
         spec_name: &str,
         func: impl Fn(Option<&APISpec>) -> T,
     ) -> T {
-        let specs = self.specs.read().ok().expect("Specs read lock");
+        let specs = self.specs.read().expect("Specs read lock");
         let specs_map = match spec_type {
             "config" => &specs.configs,
             "layer" => &specs.layers,
@@ -59,10 +59,7 @@ impl StatsigStore {
 
     pub fn get_layer_name_for_experiment(&self, experiment_name: &String) -> Option<String> {
         let specs = self.specs.read().ok()?;
-        return specs
-            .experiment_to_layer
-            .get(experiment_name)
-            .map(|n| n.clone());
+        return specs.experiment_to_layer.get(experiment_name).cloned();
     }
 
     fn spawn_bg_thread(&mut self) {
@@ -119,7 +116,7 @@ impl StatsigStore {
             }
         }
 
-        if let Some(mut mut_specs) = specs.write().ok() {
+        if let Ok(mut mut_specs) = specs.write() {
             new_specs.last_sync_time = downloaded_configs
                 .time
                 .as_u64()

@@ -47,14 +47,14 @@ impl StatsigDriver {
         ));
         let evaluator = StatsigEvaluator::new(store.clone(), &options);
 
-        return Ok(StatsigDriver {
+        Ok(StatsigDriver {
             secret_key: secret_key.to_string(),
             options,
             runtime: Mutex::from(Some(runtime)),
             store,
             evaluator,
             logger,
-        });
+        })
     }
 
     pub async fn initialize(&self) {
@@ -65,7 +65,7 @@ impl StatsigDriver {
     pub fn shutdown(&self) {
         self.logger.flush_blocking();
 
-        if let Some(mut lock) = self.runtime.lock().ok() {
+        if let Ok(mut lock) = self.runtime.lock() {
             if let Some(runtime) = lock.take() {
                 runtime.shutdown_timeout(Duration::from_secs(10))
             }
@@ -83,7 +83,7 @@ impl StatsigDriver {
             &self.options.environment,
         ));
 
-        return eval_result.bool_value;
+        eval_result.bool_value
     }
 
     pub fn get_config(&self, user: &StatsigUser, config_name: &str) -> DynamicConfig {
@@ -104,11 +104,11 @@ impl StatsigDriver {
             }
         }
 
-        return DynamicConfig {
+        DynamicConfig {
             name: config_name.to_string(),
             value,
             rule_id: eval_result.rule_id,
-        };
+        }
     }
 
     pub fn get_layer(&self, user: &StatsigUser, layer_name: &str) -> Layer {
@@ -122,7 +122,7 @@ impl StatsigDriver {
             }
         }
 
-        return Layer {
+        Layer {
             name: layer_name.to_string(),
             value,
             rule_id: eval_result.rule_id.clone(),
@@ -130,7 +130,7 @@ impl StatsigDriver {
                 user: normalized_user,
                 eval_result,
             },
-        };
+        }
     }
 
     pub fn log_event(&self, user: &StatsigUser, event: StatsigEvent) {
@@ -140,9 +140,9 @@ impl StatsigDriver {
 
     pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
         let normalized_user = self.get_normalized_user_copy(user);
-        return self
+        self
             .evaluator
-            .get_client_initialize_response(&normalized_user);
+            .get_client_initialize_response(&normalized_user)
     }
 
     pub(crate) fn log_layer_parameter_exposure(
@@ -162,7 +162,7 @@ impl StatsigDriver {
 
     fn get_normalized_user_copy(&self, user: &StatsigUser) -> StatsigUser {
         let mut normalized_user = user.clone();
-        if self.options.environment != None {
+        if self.options.environment.is_some() {
             normalized_user.statsig_environment = self.options.environment.clone();
         }
         normalized_user

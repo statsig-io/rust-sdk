@@ -1,4 +1,3 @@
-use std::mem::replace;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -41,7 +40,7 @@ impl StatsigLogger {
 
     pub fn enqueue(&self, event: StatsigEventInternal) {
         let mut should_flush = false;
-        if let Some(mut mut_events) = self.events.write().ok() {
+        if let Ok(mut mut_events) = self.events.write() {
             mut_events.push(event);
             should_flush = mut_events.len() > self.max_queue_size;
         };
@@ -55,7 +54,7 @@ impl StatsigLogger {
         let events = self.events.clone();
         let network = self.network.clone();
 
-        if let Some(mut lock) = self.running_jobs.write().ok() {
+        if let Ok(mut lock) = self.running_jobs.write() {
             // Clear any finished jobs
             lock.retain(|x| !x.is_finished());
 
@@ -71,7 +70,10 @@ impl StatsigLogger {
         let network = self.network.clone();
 
         self.runtime_handle.block_on(async move {
-            if let Some(mut t) = self.running_jobs.clone().write().ok() {
+            // Purposely hold onto the running jobs lock while waiting for
+            // all job handles to complete to ensure no new job handles
+            // are added in parallel
+            if let Ok(mut t) = self.running_jobs.clone().write() {
                 for handle in t.iter_mut() {
                     let _ = handle.await;
                 }
@@ -88,8 +90,8 @@ impl StatsigLogger {
 
         let mut local_events = None;
         if count != 0 {
-            if let Some(mut lock) = events.write().ok() {
-                local_events = Some(replace(&mut *lock, Vec::new()));
+            if let Ok(mut lock) = events.write() {
+                local_events = Some(std::mem::take(&mut *lock));
                 drop(lock);
             }
         }

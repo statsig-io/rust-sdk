@@ -34,15 +34,14 @@ impl Statsig {
         secret: &str,
         options: StatsigOptions,
     ) -> Option<StatsigError> {
-        let read_guard = unwrap_or_return!(
-            DRIVER.read().ok(),
-            Some(StatsigError::singleton_lock_failure())
-        );
-
-        if let Some(_driver) = read_guard.deref() {
-            return Some(StatsigError::already_initialized());
-        }
-        drop(read_guard);
+        match DRIVER.read().ok() {
+            Some(read_guard) => {
+                if read_guard.is_some() {
+                    return Some(StatsigError::already_initialized());
+                }
+            },
+            None => return Some(StatsigError::singleton_lock_failure()),
+        };
 
         let driver = unwrap_or_return!(
             StatsigDriver::new(secret, options).ok(),
@@ -61,14 +60,17 @@ impl Statsig {
     }
 
     pub async fn shutdown() -> Option<StatsigError> {
-        let mut write_guard = unwrap_or_return!(
-            DRIVER.write().ok(),
-            Some(StatsigError::singleton_lock_failure())
-        );
-
-        let driver = unwrap_or_return!(write_guard.take(), None);
+        let driver_clone = Arc::clone(&DRIVER);
         match spawn_blocking(move || {
-            driver.shutdown();
+            let mut write_guard = unwrap_or_return!(
+                driver_clone.write().ok(),
+                Err(StatsigError::singleton_lock_failure())
+            );
+
+            if let Some(driver) = write_guard.take() {
+                driver.shutdown();
+            }
+            Ok(())
         })
         .await
         {
@@ -100,7 +102,10 @@ impl Statsig {
     }
 
     pub fn log_event(user: &StatsigUser, event: StatsigEvent) -> Option<StatsigError> {
-        let res = Self::use_driver(move |driver| Ok(driver.log_event(user, event)));
+        let res = Self::use_driver(move |driver| {
+            driver.log_event(user, event);
+            Ok(())
+        });
 
         match res {
             Err(e) => Some(e),
@@ -118,14 +123,15 @@ impl Statsig {
         log_data: &LayerLogData,
     ) {
         let _ = Self::use_driver(|driver| {
-            Ok(driver.log_layer_parameter_exposure(layer, parameter_name, log_data))
+            driver.log_layer_parameter_exposure(layer, parameter_name, log_data);
+            Ok(())
         });
     }
 
     fn use_driver<T>(
         func: impl FnOnce(&StatsigDriver) -> Result<T, StatsigError>,
     ) -> Result<T, StatsigError> {
-        if let Some(guard) = DRIVER.read().ok() {
+        if let Ok(guard) = DRIVER.read() {
             if let Some(driver) = guard.deref() {
                 return func(driver);
             }
