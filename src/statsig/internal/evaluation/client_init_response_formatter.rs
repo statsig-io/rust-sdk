@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::RwLock;
 
-use serde_json::{from_value, json, Value};
 use serde_json::Value::Null;
+use serde_json::{from_value, json, Value};
 
-use crate::{StatsigUser, unwrap_or_return};
 use crate::statsig::internal::data_types::APISpec;
-use crate::statsig::internal::EvalResult;
 use crate::statsig::internal::evaluation::specs::Specs;
 use crate::statsig::internal::statsig_store::StatsigStore;
+use crate::statsig::internal::EvalResult;
+use crate::{unwrap_or_return, StatsigUser};
 
 type SecondaryExposures = Option<Vec<HashMap<String, String>>>;
 
@@ -29,7 +29,10 @@ impl ClientInitResponseFormatter {
             let mut result = HashMap::from([
                 ("name".to_string(), json!(hash_name(spec_name))),
                 ("rule_id".to_string(), json!(eval_result.rule_id)),
-                ("secondary_exposures".to_string(), json!(clean_exposures(&eval_result.secondary_exposures))),
+                (
+                    "secondary_exposures".to_string(),
+                    json!(clean_exposures(&eval_result.secondary_exposures)),
+                ),
             ]);
 
             match spec._type.as_str() {
@@ -43,25 +46,27 @@ impl ClientInitResponseFormatter {
                 "dynamic_config" => {
                     result.insert("value".into(), json!(eval_result.json_value));
                     result.insert("group".into(), json!(eval_result.rule_id));
-                    result.insert("is_device_based".into(), json!(
-                        spec.id_type.to_lowercase() == "stableid"
-                    ));
-
+                    result.insert(
+                        "is_device_based".into(),
+                        json!(spec.id_type.to_lowercase() == "stableid"),
+                    );
 
                     match spec.entity.as_str() {
-                        "experiment" => populate_experiment_fields(
-                            spec, &eval_result, &mut result, spec_store,
-                        ),
+                        "experiment" => {
+                            populate_experiment_fields(spec, &eval_result, &mut result, spec_store)
+                        }
                         "layer" => populate_layer_fields(
-                            spec, &eval_result, &mut result, spec_store, |delegate_spec| {
-                                eval_func(user, delegate_spec)
-                            },
+                            spec,
+                            &eval_result,
+                            &mut result,
+                            spec_store,
+                            |delegate_spec| eval_func(user, delegate_spec),
                         ),
                         _ => return None,
                     }
                 }
 
-                _ => return None
+                _ => return None,
             }
 
             Some(json!(result))
@@ -72,7 +77,7 @@ impl ClientInitResponseFormatter {
                 "gates" => specs.gates.iter(),
                 "configs" => specs.configs.iter(),
                 "layers" => specs.layers.iter(),
-                _ => return vec![]
+                _ => return vec![],
             };
             return iter
                 .map(|(name, spec)| get_evaluated_spec(name, spec))
@@ -116,8 +121,14 @@ fn populate_experiment_fields(
     result: &mut HashMap<String, Value>,
     spec_store: &StatsigStore,
 ) {
-    result.insert("is_user_in_experiment".into(), json!(eval_result.is_experiment_group));
-    result.insert("is_experiment_active".into(), json!(spec.is_experiment_active.unwrap_or(false)));
+    result.insert(
+        "is_user_in_experiment".into(),
+        json!(eval_result.is_experiment_group),
+    );
+    result.insert(
+        "is_experiment_active".into(),
+        json!(spec.is_experiment_active.unwrap_or(false)),
+    );
 
     if !spec.has_shared_params.unwrap_or(false) {
         return;
@@ -127,15 +138,14 @@ fn populate_experiment_fields(
 
     let explicit_params = match &spec.explicit_parameters {
         Some(params) => json!(params),
-        None => json!([])
+        None => json!([]),
     };
     result.insert("explicit_parameters".into(), explicit_params);
 
     let layer_name = unwrap_or_return!(spec_store.get_layer_name_for_experiment(&spec.name), ());
-    let layer_value = spec_store
-        .use_spec("layer", layer_name.as_str(), |layer| {
-            return unwrap_or_return!(layer, Null).default_value.clone();
-        });
+    let layer_value = spec_store.use_spec("layer", layer_name.as_str(), |layer| {
+        return unwrap_or_return!(layer, Null).default_value.clone();
+    });
 
     let merged = merge_json_value(&layer_value, json!(eval_result.json_value));
     result.insert("value".into(), merged);
@@ -150,7 +160,7 @@ fn populate_layer_fields(
 ) {
     let explicit_params = match &spec.explicit_parameters {
         Some(params) => json!(params),
-        None => json!([])
+        None => json!([]),
     };
     result.insert("explicit_parameters".into(), explicit_params);
 
@@ -164,14 +174,23 @@ fn populate_layer_fields(
             let delegate_spec = unwrap_or_return!(delegate_spec, None);
             let is_active = unwrap_or_return!(delegate_spec.is_active, None);
             return Some((is_active, eval_func(delegate_spec)));
-        }), 
+        }),
         ()
     );
 
-    result.insert("allocated_experiment_name".into(), json!(hash_name(delegate)));
-    result.insert("is_user_in_experiment".into(), json!(delegate_result.is_experiment_group));
+    result.insert(
+        "allocated_experiment_name".into(),
+        json!(hash_name(delegate)),
+    );
+    result.insert(
+        "is_user_in_experiment".into(),
+        json!(delegate_result.is_experiment_group),
+    );
     result.insert("is_experiment_active".into(), json!(is_active));
-    result.insert("explicit_parameters".into(), json!(delegate_result.explicit_parameters));
+    result.insert(
+        "explicit_parameters".into(),
+        json!(delegate_result.explicit_parameters),
+    );
 }
 
 fn merge_json_value(left: &Value, right: Value) -> Value {

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use serde_json::{Value, from_value};
 use serde::de::DeserializeOwned;
+use serde_json::{from_value, Value};
+use std::collections::HashMap;
 
 pub struct DynamicConfig {
     pub name: String,
@@ -13,7 +13,7 @@ impl DynamicConfig {
         if !self.value.contains_key(key) {
             return default;
         }
-        
+
         if let Ok(value) = from_value(self.value[key].clone()) {
             return value;
         }
@@ -21,4 +21,3 @@ impl DynamicConfig {
         return default;
     }
 }
-

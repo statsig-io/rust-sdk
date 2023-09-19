@@ -15,8 +15,7 @@ macro_rules! unwrap_or_return {
     ($res: expr, $code: expr) => {
         match $res {
             Some(v) => v,
-            None => return $code
+            None => return $code,
         }
     };
 }
-

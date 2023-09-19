@@ -10,4 +10,3 @@ pub struct StatsigEvent {
     pub value: Option<Value>,
     pub metadata: Option<HashMap<String, Value>>,
 }
-

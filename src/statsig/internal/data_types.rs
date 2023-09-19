@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,4 +68,3 @@ pub enum APIDownloadedConfigsResponse {
     WithUpdates(APIDownloadedConfigsWithUpdates),
     NoUpdates(APIDownloadedConfigsNoUpdates),
 }
-

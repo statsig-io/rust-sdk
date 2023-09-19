@@ -1,6 +1,6 @@
+use chrono::Utc;
 use std::collections::HashMap;
 use std::string::ToString;
-use chrono::Utc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -26,35 +26,50 @@ pub(crate) fn make_gate_exposure(
     user: &StatsigUser,
     gate_name: &str,
     eval_result: &EvalResult,
-    statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
+    statsig_environment: &StatsigEnvironment,
+) -> StatsigEventInternal {
     let event = StatsigEvent {
         event_name: "statsig::gate_exposure".to_string(),
         value: None,
         metadata: Some(HashMap::from([
             ("gate".to_string(), json!(gate_name)),
-            ("gateValue".to_string(), json!(eval_result.bool_value.to_string())),
-            ("ruleID".to_string(), json!(eval_result.rule_id))
+            (
+                "gateValue".to_string(),
+                json!(eval_result.bool_value.to_string()),
+            ),
+            ("ruleID".to_string(), json!(eval_result.rule_id)),
         ])),
     };
 
-    finalize_with_cloned_or_empty_exposures(user, event, statsig_environment, &eval_result.secondary_exposures)
+    finalize_with_cloned_or_empty_exposures(
+        user,
+        event,
+        statsig_environment,
+        &eval_result.secondary_exposures,
+    )
 }
 
 pub(crate) fn make_config_exposure(
     user: &StatsigUser,
     config_name: &str,
     eval_result: &EvalResult,
-    statsig_environment: &StatsigEnvironment) -> StatsigEventInternal {
+    statsig_environment: &StatsigEnvironment,
+) -> StatsigEventInternal {
     let event = StatsigEvent {
         event_name: "statsig::config_exposure".to_string(),
         value: None,
         metadata: Some(HashMap::from([
             ("config".to_string(), json!(config_name)),
-            ("ruleID".to_string(), json!(eval_result.rule_id))
+            ("ruleID".to_string(), json!(eval_result.rule_id)),
         ])),
     };
 
-    finalize_with_cloned_or_empty_exposures(user, event, statsig_environment, &eval_result.secondary_exposures)
+    finalize_with_cloned_or_empty_exposures(
+        user,
+        event,
+        statsig_environment,
+        &eval_result.secondary_exposures,
+    )
 }
 
 pub(crate) fn make_layer_exposure(
@@ -68,7 +83,7 @@ pub(crate) fn make_layer_exposure(
     let mut allocated_experiment = None;
     let is_explicit = match &eval_result.explicit_parameters {
         Some(explicit_params) => explicit_params.iter().any(|x| x == parameter_name),
-        _ => false
+        _ => false,
     };
 
     if is_explicit {
@@ -82,9 +97,15 @@ pub(crate) fn make_layer_exposure(
         metadata: Some(HashMap::from([
             ("config".to_string(), json!(layer_name)),
             ("ruleID".to_string(), json!(eval_result.rule_id)),
-            ("allocatedExperiment".to_string(), json!(allocated_experiment.unwrap_or("".to_string()))),
+            (
+                "allocatedExperiment".to_string(),
+                json!(allocated_experiment.unwrap_or("".to_string())),
+            ),
             ("parameterName".to_string(), json!(parameter_name)),
-            ("isExplicitParameter".to_string(), json!(format!("{}", is_explicit))),
+            (
+                "isExplicitParameter".to_string(),
+                json!(format!("{}", is_explicit)),
+            ),
         ])),
     };
 
@@ -107,9 +128,9 @@ fn finalize_with_cloned_or_empty_exposures(
 ) -> StatsigEventInternal {
     let exposures = match secondary_exposures {
         Some(expo) => expo.clone(),
-        None => vec![]
+        None => vec![],
     };
-    
+
     finalize_with_optional_exposures(user, event, statsig_environment, Some(exposures))
 }
 
@@ -134,4 +155,3 @@ fn finalize_with_optional_exposures(
         secondary_exposures,
     }
 }
-

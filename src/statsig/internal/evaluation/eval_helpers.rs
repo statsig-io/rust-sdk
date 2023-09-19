@@ -14,7 +14,7 @@ pub fn compute_user_hash(value: String) -> Option<usize> {
     let result = sha256.finalize();
     match result.split_at(size_of::<usize>()).0.try_into() {
         Ok(bytes) => Some(usize::from_be_bytes(bytes)),
-        _ => None
+        _ => None,
     }
 }
 
@@ -26,7 +26,7 @@ pub fn compare_numbers(left: &Value, right: &Value, op: &str) -> Option<bool> {
         "gte" => Some(left_num >= right_num),
         "lt" => Some(left_num < right_num),
         "lte" => Some(left_num <= right_num),
-        _ => None
+        _ => None,
     }
 }
 
@@ -79,7 +79,7 @@ pub fn compare_versions(left: &Value, right: &Value, op: &str) -> Option<bool> {
         "version_lte" => Some(result <= 0),
         "version_eq" => Some(result == 0),
         "version_neq" => Some(result != 0),
-        _ => None
+        _ => None,
     }
 }
 
@@ -91,15 +91,23 @@ pub fn compare_strings_in_array(value: &Value, array: &Value, op: &str, ignore_c
                 Some(s) => s,
                 _ => return false,
             };
-            let left = if ignore_case { value_str.to_lowercase() } else { value_str.clone() };
-            let right = if ignore_case { curr_str.to_lowercase() } else { curr_str.clone() };
+            let left = if ignore_case {
+                value_str.to_lowercase()
+            } else {
+                value_str.clone()
+            };
+            let right = if ignore_case {
+                curr_str.to_lowercase()
+            } else {
+                curr_str.clone()
+            };
 
             match op {
                 "any" | "none" | "any_case_sensitive" | "none_case_sensitive" => left.eq(&right),
                 "str_starts_with_any" => left.starts_with(&right),
                 "str_ends_with_any" => left.ends_with(&right),
                 "str_contains_any" | "str_contains_none" => left.contains(&right),
-                _ => false
+                _ => false,
             }
         }))
     };
@@ -120,7 +128,6 @@ pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
         Some(regex.is_match(&value_str))
     };
 
-
     comparison().unwrap_or(false)
 }
 
@@ -131,9 +138,11 @@ pub fn compare_time(left: &Value, right: &Value, op: &str) -> Option<bool> {
     match op {
         "before" => Some(left_num < right_num),
         "after" => Some(left_num > right_num),
-        "on" => Some(Duration::milliseconds(left_num).num_days() ==
-            Duration::milliseconds(right_num).num_days()),
-        _ => None
+        "on" => Some(
+            Duration::milliseconds(left_num).num_days()
+                == Duration::milliseconds(right_num).num_days(),
+        ),
+        _ => None,
     }
 }
 
@@ -156,7 +165,6 @@ pub fn value_to_i64(value: &Value) -> Option<i64> {
 pub fn value_to_string(value: &Value) -> Option<String> {
     match value {
         Value::String(s) => Some(s.clone()),
-        _ => Some(format!("{}", value))
+        _ => Some(format!("{}", value)),
     }
 }
-
