@@ -65,7 +65,11 @@ impl StatsigNetwork {
         endpoint: &str,
         body: &mut HashMap<&str, Value>,
     ) -> Result<Response, Error> {
-        let url = format!("{}/{}", self.base_api, endpoint);
+        let url = if self.base_api.ends_with('/') {
+            format!("{}{}", self.base_api, endpoint)
+        } else {
+            format!("{}/{}", self.base_api, endpoint)
+        };
 
         let mut headers = HeaderMap::new();
         headers.insert(
