@@ -21,7 +21,7 @@ impl StatsigUser {
             return Some(custom_id.clone());
         }
 
-        return None;
+        None
     }
 
     pub fn get_user_value(&self, field: &Option<String>) -> Value {
@@ -65,7 +65,7 @@ impl StatsigUser {
             }
         }
 
-        return Null;
+        Null
     }
 
     pub fn get_value_from_environment(&self, field: &Option<String>) -> Value {

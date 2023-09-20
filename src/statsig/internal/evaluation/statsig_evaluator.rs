@@ -152,7 +152,7 @@ impl StatsigEvaluator {
         &self,
         user: &StatsigUser,
         rule: &APIRule,
-        exposures: &Vec<HashMap<String, String>>,
+        exposures: &[HashMap<String, String>],
     ) -> Option<EvalResult> {
         let delegate = unwrap_or_return!(&rule.config_delegate, None);
         self.spec_store.use_spec("config", delegate, |spec| {
@@ -161,8 +161,8 @@ impl StatsigEvaluator {
                 return Some(result);
             }
 
-            let undel_sec_expo = exposures.clone();
-            let mut sec_expo = exposures.clone();
+            let undel_sec_expo = exposures.to_owned();
+            let mut sec_expo = exposures.to_owned();
             if let Some(mut result_exposures) = result.secondary_exposures {
                 sec_expo.append(&mut result_exposures);
             }
@@ -204,7 +204,7 @@ impl StatsigEvaluator {
                 Some(time) => json!(time.as_millis().to_string()),
                 _ => Null,
             },
-            "user_bucket" => match self.get_hash_for_user_bucket(user, &condition) {
+            "user_bucket" => match self.get_hash_for_user_bucket(user, condition) {
                 Some(hash) => json!(hash),
                 _ => Null,
             },
@@ -251,7 +251,7 @@ impl StatsigEvaluator {
 
             _ => return EvalResult::unsupported(),
         };
-        return EvalResult::boolean(result);
+        EvalResult::boolean(result)
     }
 
     fn eval_pass_percentage(&self, user: &StatsigUser, rule: &APIRule, spec_salt: &String) -> bool {

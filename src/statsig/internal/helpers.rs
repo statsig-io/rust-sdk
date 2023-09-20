@@ -4,9 +4,9 @@ pub trait UsizeExt {
 
 impl UsizeExt for usize {
     fn post_inc(&mut self) -> Self {
-        let was = self.clone();
+        let was = *self;
         *self += 1;
-        return was;
+        was
     }
 }
 

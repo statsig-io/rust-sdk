@@ -57,7 +57,7 @@ impl StatsigNetwork {
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) -> Option<Response> {
         let mut body = HashMap::from([("events", json!(events))]);
 
-        return self.make_request("log_event", &mut body).await.ok();
+        self.make_request("log_event", &mut body).await.ok()
     }
 
     async fn make_request(

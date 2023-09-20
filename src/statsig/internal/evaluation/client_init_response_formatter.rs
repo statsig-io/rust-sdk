@@ -1,13 +1,9 @@
-use std::collections::hash_map::Iter;
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::sync::RwLock;
 
 use serde_json::Value::Null;
-use serde_json::{from_value, json, Value};
+use serde_json::{json, Value};
 
 use crate::statsig::internal::data_types::APISpec;
-use crate::statsig::internal::evaluation::specs::Specs;
 use crate::statsig::internal::statsig_store::StatsigStore;
 use crate::statsig::internal::EvalResult;
 use crate::{unwrap_or_return, StatsigUser};
@@ -79,10 +75,9 @@ impl ClientInitResponseFormatter {
                 "layers" => specs.layers.iter(),
                 _ => return vec![],
             };
-            return iter
-                .map(|(name, spec)| get_evaluated_spec(name, spec))
+            iter.map(|(name, spec)| get_evaluated_spec(name, spec))
                 .filter(|result| result.is_some())
-                .collect();
+                .collect()
         };
 
         let mut evaluated_keys: HashMap<String, Value> = HashMap::new();
@@ -107,12 +102,12 @@ impl ClientInitResponseFormatter {
     }
 }
 
-fn hash_name(name: &String) -> String {
-    return name.clone();
+fn hash_name(name: &str) -> String {
+    name.to_owned()
 }
 
-fn clean_exposures(exposures: &SecondaryExposures) -> SecondaryExposures {
-    return Some(vec![]);
+fn clean_exposures(_exposures: &SecondaryExposures) -> SecondaryExposures {
+    Some(vec![])
 }
 
 fn populate_experiment_fields(
@@ -142,9 +137,16 @@ fn populate_experiment_fields(
     };
     result.insert("explicit_parameters".into(), explicit_params);
 
-    let layer_name = unwrap_or_return!(spec_store.get_layer_name_for_experiment(&spec.name), ());
+    let layer_name = match spec_store.get_layer_name_for_experiment(&spec.name) {
+        Some(layer_name) => layer_name,
+        None => return ,
+    };
     let layer_value = spec_store.use_spec("layer", layer_name.as_str(), |layer| {
-        return unwrap_or_return!(layer, Null).default_value.clone();
+        if let Some(layer_value) = layer {
+            return layer_value.default_value.clone();
+        }
+
+        Null
     });
 
     let merged = merge_json_value(&layer_value, json!(eval_result.json_value));
@@ -164,33 +166,33 @@ fn populate_layer_fields(
     };
     result.insert("explicit_parameters".into(), explicit_params);
 
-    let delegate = unwrap_or_return!(&eval_result.config_delegate, ());
-    if delegate.is_empty() {
-        return;
+    if let Some(delegate) = &eval_result.config_delegate {
+        if delegate.is_empty() {
+            return;
+        }
+
+        if let Some((is_active, delegate_result)) =
+            spec_store.use_spec("config", delegate.as_str(), |delegate_spec| {
+                let delegate_spec = unwrap_or_return!(delegate_spec, None);
+                let is_active = unwrap_or_return!(delegate_spec.is_active, None);
+                Some((is_active, eval_func(delegate_spec)))
+            })
+        {
+            result.insert(
+                "allocated_experiment_name".into(),
+                json!(hash_name(delegate)),
+            );
+            result.insert(
+                "is_user_in_experiment".into(),
+                json!(delegate_result.is_experiment_group),
+            );
+            result.insert("is_experiment_active".into(), json!(is_active));
+            result.insert(
+                "explicit_parameters".into(),
+                json!(delegate_result.explicit_parameters),
+            );
+        }
     }
-
-    let (is_active, delegate_result) = unwrap_or_return!(
-        spec_store.use_spec("config", delegate.as_str(), |delegate_spec| {
-            let delegate_spec = unwrap_or_return!(delegate_spec, None);
-            let is_active = unwrap_or_return!(delegate_spec.is_active, None);
-            return Some((is_active, eval_func(delegate_spec)));
-        }),
-        ()
-    );
-
-    result.insert(
-        "allocated_experiment_name".into(),
-        json!(hash_name(delegate)),
-    );
-    result.insert(
-        "is_user_in_experiment".into(),
-        json!(delegate_result.is_experiment_group),
-    );
-    result.insert("is_experiment_active".into(), json!(is_active));
-    result.insert(
-        "explicit_parameters".into(),
-        json!(delegate_result.explicit_parameters),
-    );
 }
 
 fn merge_json_value(left: &Value, right: Value) -> Value {
@@ -201,5 +203,5 @@ fn merge_json_value(left: &Value, right: Value) -> Value {
         }
     }
 
-    return left.clone();
+    left.clone()
 }

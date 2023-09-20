@@ -49,7 +49,7 @@ impl CountryLookup {
                 count = n2 | (n3 << 8) | (n4 << 16);
             }
 
-            last_end_range += (count as i64) * 256;
+            last_end_range += count * 256;
 
             let cc = bytes[i.post_inc()] as usize;
             ip_ranges.push(last_end_range);
@@ -77,14 +77,14 @@ impl CountryLookup {
             _ => return Null,
         };
 
-        match self.lookup(&ip) {
+        match self.lookup(ip) {
             Some(cc) => Value::String(cc),
             _ => Null,
         }
     }
 
-    fn lookup(&self, ip_address: &String) -> Option<String> {
-        let parts: Vec<&str> = ip_address.as_str().split(".").collect();
+    fn lookup(&self, ip_address: &str) -> Option<String> {
+        let parts: Vec<&str> = ip_address.split('.').collect();
         if parts.len() != 4 {
             return None;
         }
@@ -120,6 +120,6 @@ impl CountryLookup {
             }
         }
 
-        return min;
+        min
     }
 }

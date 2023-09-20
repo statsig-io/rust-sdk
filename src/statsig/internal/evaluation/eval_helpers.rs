@@ -34,17 +34,17 @@ pub fn compare_versions(left: &Value, right: &Value, op: &str) -> Option<bool> {
     let mut left_str = value_to_string(left)?;
     let mut right_str = value_to_string(right)?;
 
-    if let Some(index) = left_str.find("-") {
+    if let Some(index) = left_str.find('-') {
         left_str = left_str[0..index].to_string();
     }
 
-    if let Some(index) = right_str.find("-") {
+    if let Some(index) = right_str.find('-') {
         right_str = right_str[0..index].to_string();
     }
 
-    fn comparison(left_str: &String, right_str: &String) -> Option<i32> {
-        let left_parts: Vec<&str> = left_str.split(".").collect();
-        let right_parts: Vec<&str> = right_str.split(".").collect();
+    fn comparison(left_str: &str, right_str: &str) -> Option<i32> {
+        let left_parts: Vec<&str> = left_str.split('.').collect();
+        let right_parts: Vec<&str> = right_str.split('.').collect();
 
         let mut i = 0;
         while i < max(left_parts.len(), right_parts.len()) {
