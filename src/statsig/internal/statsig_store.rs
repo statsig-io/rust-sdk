@@ -84,9 +84,13 @@ impl StatsigStore {
             _ => 0,
         };
 
-        let downloaded_configs = match network.download_config_specs(last_sync_time).await? {
-            WithUpdates(r) => r,
-            NoUpdates(..) => return None,
+        let downloaded_configs = match network.download_config_specs(last_sync_time).await {
+            Some(WithUpdates(r)) => r,
+            Some(NoUpdates(..)) => return None,
+            None => {
+                println!("[Statsig] No result returned from download_config_specs");
+                return None
+            }
         };
 
         let mut new_specs = Specs::new();

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use crate::statsig::internal::data_types::APIDownloadedConfigsResponse;
+use crate::statsig::internal::data_types::{APIDownloadedConfigsNoUpdates, APIDownloadedConfigsResponse, APIDownloadedConfigsWithUpdates};
 use http::HeaderMap;
 use reqwest::{Client, Error, Response};
-use serde_json::{json, Value};
+use serde_json::{from_value, json, Value};
+use crate::statsig::internal::data_types::APIDownloadedConfigsResponse::{NoUpdates, WithUpdates};
 
 use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
 use crate::StatsigOptions;
@@ -41,17 +42,25 @@ impl StatsigNetwork {
             .make_request("download_config_specs", &mut body)
             .await
             .ok()?;
-        if res.status() != 200 {
+
+        if res.status().as_u16() > 299 {
+            println!("[Statsig] Unexpected status code ({}) for download_config_specs.", res.status());
             return None;
         }
 
-        match res.json().await {
-            Ok(json) => Some(json),
-            Err(e) => {
-                println!("[Statsig] Parsing Error: {}", e);
-                None
+        let text = res.text().await.ok()?;
+        let json_value: Value = serde_json::from_str(&text).ok()?;
+        if let Ok(with_updates) = from_value::<APIDownloadedConfigsWithUpdates>(json_value.clone()) {
+            return Some(WithUpdates(with_updates));
+        }
+
+        if let Ok(no_updates) = from_value::<APIDownloadedConfigsNoUpdates>(json_value.clone()) {
+            if no_updates.has_updates == false {
+                return Some(NoUpdates(no_updates));
             }
         }
+
+        None
     }
 
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) -> Option<Response> {

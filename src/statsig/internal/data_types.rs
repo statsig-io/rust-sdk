@@ -30,7 +30,7 @@ pub struct APIRule {
     pub salt: Option<String>,
     pub conditions: Vec<APICondition>,
     pub id_type: String,
-    pub group_name: String,
+    pub group_name: Option<String>,
     pub config_delegate: Option<String>,
 }
 
