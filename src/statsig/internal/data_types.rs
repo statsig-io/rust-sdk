@@ -15,7 +15,6 @@ pub struct APISpec {
     pub id_type: String,
     pub explicit_parameters: Option<Vec<String>>,
     pub entity: String,
-    pub is_experiment_active: Option<bool>,
     pub has_shared_params: Option<bool>,
     pub is_active: Option<bool>,
 }
@@ -32,6 +31,7 @@ pub struct APIRule {
     pub id_type: String,
     pub group_name: Option<String>,
     pub config_delegate: Option<String>,
+    pub is_experiment_group: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]

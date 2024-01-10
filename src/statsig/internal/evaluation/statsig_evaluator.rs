@@ -144,6 +144,7 @@ impl StatsigEvaluator {
             json_value: Some(rule.return_value.clone()),
             rule_id: rule.id.clone(),
             secondary_exposures: Some(exposures),
+            is_experiment_group: rule.is_experiment_group.unwrap_or(false),
             ..EvalResult::default()
         }
     }
@@ -168,11 +169,11 @@ impl StatsigEvaluator {
             }
 
             let spec = unwrap_or_return!(spec, None);
+
             result.explicit_parameters = spec.explicit_parameters.clone();
             result.secondary_exposures = Some(sec_expo);
             result.undelegated_secondary_exposures = Some(undel_sec_expo);
             result.config_delegate = Some(delegate.clone());
-
             Some(result)
         })
     }
@@ -184,7 +185,7 @@ impl StatsigEvaluator {
         let value = match condition_type.as_str() {
             "public" => return EvalResult::boolean(true),
             "fail_gate" | "pass_gate" => {
-                return self.eval_nested_gate(user, &target_value, &condition_type)
+                return self.eval_nested_gate(user, &target_value, &condition_type);
             }
             "ip_based" => match user.get_user_value(&condition.field) {
                 Null => self

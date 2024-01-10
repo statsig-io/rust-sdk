@@ -2,6 +2,10 @@ use std::collections::HashMap;
 
 use serde_json::Value::Null;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use base64;
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 
 use crate::statsig::internal::data_types::APISpec;
 use crate::statsig::internal::statsig_store::StatsigStore;
@@ -58,25 +62,25 @@ impl ClientInitResponseFormatter {
                             spec_store,
                             |delegate_spec| eval_func(user, delegate_spec),
                         ),
-                        _ => return None,
+                        _ => { /* noop */ }
                     }
                 }
-
                 _ => return None,
             }
 
             Some(json!(result))
         };
 
-        let eval_all = |spec_type: &str| -> Vec<Option<Value>> {
+        let eval_all = |spec_type: &str| -> HashMap<String, Option<Value>> {
             let iter = match spec_type {
                 "gates" => specs.gates.iter(),
                 "configs" => specs.configs.iter(),
                 "layers" => specs.layers.iter(),
-                _ => return vec![],
+                _ => return HashMap::new(),
             };
-            iter.map(|(name, spec)| get_evaluated_spec(name, spec))
-                .filter(|result| result.is_some())
+
+            iter.map(|(name, spec)| (hash_name(name), get_evaluated_spec(name, spec)))
+                .filter(|(_, result)| result.is_some())
                 .collect()
         };
 
@@ -103,7 +107,10 @@ impl ClientInitResponseFormatter {
 }
 
 fn hash_name(name: &str) -> String {
-    name.to_owned()
+    let mut hash = Sha256::new();
+    hash.update(name.as_bytes());
+
+    BASE64_STANDARD.encode(hash.finalize())
 }
 
 fn clean_exposures(_exposures: &SecondaryExposures) -> SecondaryExposures {
@@ -122,7 +129,7 @@ fn populate_experiment_fields(
     );
     result.insert(
         "is_experiment_active".into(),
-        json!(spec.is_experiment_active.unwrap_or(false)),
+        json!(spec.is_active.unwrap_or(false)),
     );
 
     if !spec.has_shared_params.unwrap_or(false) {
@@ -130,16 +137,14 @@ fn populate_experiment_fields(
     }
 
     result.insert("is_in_layer".into(), json!(true));
-
-    let explicit_params = match &spec.explicit_parameters {
-        Some(params) => json!(params),
-        None => json!([]),
-    };
-    result.insert("explicit_parameters".into(), explicit_params);
+    result.insert(
+        "explicit_parameters".into(),
+        json!(spec.explicit_parameters.as_ref().unwrap_or(&vec![])),
+    );
 
     let layer_name = match spec_store.get_layer_name_for_experiment(&spec.name) {
         Some(layer_name) => layer_name,
-        None => return ,
+        None => return,
     };
     let layer_value = spec_store.use_spec("layer", layer_name.as_str(), |layer| {
         if let Some(layer_value) = layer {
@@ -160,48 +165,65 @@ fn populate_layer_fields(
     spec_store: &StatsigStore,
     eval_func: impl Fn(&APISpec) -> EvalResult,
 ) {
-    let explicit_params = match &spec.explicit_parameters {
-        Some(params) => json!(params),
-        None => json!([]),
-    };
-    result.insert("explicit_parameters".into(), explicit_params);
+    result.insert(
+        "explicit_parameters".into(),
+        json!(spec.explicit_parameters.as_ref().unwrap_or(&vec![])),
+    );
+    result.insert("undelegated_secondary_exposures".into(), json!([]));
 
-    if let Some(delegate) = &eval_result.config_delegate {
-        if delegate.is_empty() {
-            return;
-        }
-
-        if let Some((is_active, delegate_result)) =
-            spec_store.use_spec("config", delegate.as_str(), |delegate_spec| {
-                let delegate_spec = unwrap_or_return!(delegate_spec, None);
-                let is_active = unwrap_or_return!(delegate_spec.is_active, None);
-                Some((is_active, eval_func(delegate_spec)))
-            })
-        {
-            result.insert(
-                "allocated_experiment_name".into(),
-                json!(hash_name(delegate)),
-            );
-            result.insert(
-                "is_user_in_experiment".into(),
-                json!(delegate_result.is_experiment_group),
-            );
-            result.insert("is_experiment_active".into(), json!(is_active));
-            result.insert(
-                "explicit_parameters".into(),
-                json!(delegate_result.explicit_parameters),
-            );
-        }
+    let delegate = unwrap_or_return!(&eval_result.config_delegate, ());
+    if delegate.is_empty() {
+        return;
     }
+
+    let local_result = spec_store.use_spec("config", delegate.as_str(), |delegate_spec| {
+        let mut local_result: HashMap<String, Value> = HashMap::new();
+        let delegate_spec = unwrap_or_return!(delegate_spec, local_result);
+        let delegate_result = eval_func(delegate_spec);
+
+        local_result.insert(
+            "allocated_experiment_name".into(),
+            json!(hash_name(delegate)),
+        );
+        local_result.insert(
+            "is_user_in_experiment".into(),
+            json!(delegate_result.is_experiment_group),
+        );
+        local_result.insert(
+            "is_experiment_active".into(),
+            json!(delegate_spec.is_active),
+        );
+        local_result.insert(
+            "explicit_parameters".into(),
+            json!(delegate_spec.explicit_parameters.as_ref().unwrap_or(&vec![])),
+        );
+        local_result.insert(
+            "undelegated_secondary_exposures".into(),
+            json!(clean_exposures(&delegate_result.undelegated_secondary_exposures)),
+        );
+
+        local_result
+    });
+
+    merge_hash_value(result, local_result);
 }
 
 fn merge_json_value(left: &Value, right: Value) -> Value {
     if let (Value::Object(left), Value::Object(right)) = (left, right) {
-        let mut base = left.clone();
+        let mut result = left.clone();
         for (key, value) in right.iter() {
-            base.insert(key.clone(), value.clone());
+            result.insert(key.clone(), value.clone());
         }
+
+        return json!(result);
     }
 
     left.clone()
+}
+
+
+fn merge_hash_value(left: &mut HashMap<String, Value>, right: HashMap<String, Value>) {
+    for (key, value) in right.iter() {
+        left.insert(key.clone(), value.clone());
+    }
 }
