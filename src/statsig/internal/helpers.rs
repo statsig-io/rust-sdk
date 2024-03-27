@@ -19,3 +19,13 @@ macro_rules! unwrap_or_return {
         }
     };
 }
+
+#[macro_export]
+macro_rules! unwrap_or_return_noop {
+    ($res: expr) => {
+        match $res {
+            Some(v) => v,
+            None => return,
+        }
+    };
+}

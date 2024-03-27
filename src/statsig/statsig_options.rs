@@ -10,8 +10,8 @@ pub struct StatsigOptions {
     pub disable_user_agent_support: bool,
 }
 
-impl StatsigOptions {
-    pub fn default() -> StatsigOptions {
+impl Default for StatsigOptions {
+    fn default() -> StatsigOptions {
         StatsigOptions {
             environment: None,
             api_override: "https://statsigapi.net/v1".to_string(),
