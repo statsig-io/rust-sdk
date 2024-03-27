@@ -15,6 +15,7 @@ pub struct StatsigNetwork {
     client: Client,
     secret: String,
     base_api: String,
+    dcs_api: String,
     statsig_metadata: Value,
 }
 
@@ -24,6 +25,7 @@ impl StatsigNetwork {
             client: Client::new(),
             secret: secret_key.to_string(),
             base_api: options.api_override.clone(),
+            dcs_api: options.api_for_download_config_specs.clone(),
             statsig_metadata: json!(HashMap::from([
                 ("sdkType".to_string(), "rust-server".to_string()),
                 ("sdkVersion".to_string(), VERSION.to_string())
@@ -74,10 +76,13 @@ impl StatsigNetwork {
         endpoint: &str,
         body: &mut HashMap<&str, Value>,
     ) -> Result<Response, Error> {
-        let url = if self.base_api.ends_with('/') {
-            format!("{}{}", self.base_api, endpoint)
-        } else {
-            format!("{}/{}", self.base_api, endpoint)
+        let api = match endpoint == "download_config_specs" {
+            true => &self.dcs_api,
+            false => &self.base_api,
+        };
+        let url = match api.ends_with('/') {
+            true => format!("{}{}", api, endpoint),
+            false => format!("{}/{}", api, endpoint),
         };
 
         let mut headers = HeaderMap::new();
