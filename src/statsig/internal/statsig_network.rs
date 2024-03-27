@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use crate::statsig::internal::data_types::{APIDownloadedConfigsNoUpdates, APIDownloadedConfigsResponse, APIDownloadedConfigsWithUpdates};
+use crate::statsig::internal::data_types::APIDownloadedConfigsResponse::{NoUpdates, WithUpdates};
+use crate::statsig::internal::data_types::{
+    APIDownloadedConfigsNoUpdates, APIDownloadedConfigsResponse, APIDownloadedConfigsWithUpdates,
+};
 use http::HeaderMap;
 use reqwest::{Client, Error, Response};
 use serde_json::{from_value, json, Value};
-use crate::statsig::internal::data_types::APIDownloadedConfigsResponse::{NoUpdates, WithUpdates};
 
 use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
 use crate::StatsigOptions;
@@ -37,22 +39,35 @@ impl StatsigNetwork {
         &self,
         since_time: u64,
     ) -> Option<APIDownloadedConfigsResponse> {
-        let mut body = HashMap::new();
-        body.insert("sinceTime", json!(since_time));
-
-        let res = self
-            .make_request("download_config_specs", &mut body)
-            .await
-            .ok()?;
+        let res = match self.dcs_api == "https://api.statsigcdn.com/v1" {
+            true => self
+                .make_get_request(
+                    &format!("download_config_specs/{}.json", self.secret),
+                    &HashMap::from([("sinceTime", since_time.to_string().as_str())]),
+                )
+                .await
+                .ok()?,
+            false => {
+                let mut body = HashMap::new();
+                body.insert("sinceTime", json!(since_time));
+                self.make_post_request("download_config_specs", &mut body)
+                    .await
+                    .ok()?
+            }
+        };
 
         if res.status().as_u16() > 299 {
-            println!("[Statsig] Unexpected status code ({}) for download_config_specs.", res.status());
+            println!(
+                "[Statsig] Unexpected status code ({}) for download_config_specs.",
+                res.status()
+            );
             return None;
         }
 
         let text = res.text().await.ok()?;
         let json_value: Value = serde_json::from_str(&text).ok()?;
-        if let Ok(with_updates) = from_value::<APIDownloadedConfigsWithUpdates>(json_value.clone()) {
+        if let Ok(with_updates) = from_value::<APIDownloadedConfigsWithUpdates>(json_value.clone())
+        {
             return Some(WithUpdates(with_updates));
         }
 
@@ -68,23 +83,43 @@ impl StatsigNetwork {
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) -> Option<Response> {
         let mut body = HashMap::from([("events", json!(events))]);
 
-        self.make_request("log_event", &mut body).await.ok()
+        self.make_post_request("log_event", &mut body).await.ok()
     }
 
-    async fn make_request(
+    fn get_api_url(&self, endpoint: &str) -> String {
+        let api = match endpoint.starts_with("download_config_specs") {
+            true => self.dcs_api.clone(),
+            false => self.base_api.clone(),
+        };
+        match api.ends_with('/') {
+            true => format!("{}{}", api, endpoint),
+            false => format!("{}/{}", api, endpoint),
+        }
+    }
+
+    async fn make_get_request(
+        &self,
+        endpoint: &str,
+        query_params: &HashMap<&str, &str>,
+    ) -> Result<Response, Error> {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "STATSIG-API-KEY",
+            self.secret.parse().expect("statsig_api_key -> header"),
+        );
+
+        self.client
+            .get(self.get_api_url(endpoint))
+            .query(query_params)
+            .send()
+            .await
+    }
+
+    async fn make_post_request(
         &self,
         endpoint: &str,
         body: &mut HashMap<&str, Value>,
     ) -> Result<Response, Error> {
-        let api = match endpoint == "download_config_specs" {
-            true => &self.dcs_api,
-            false => &self.base_api,
-        };
-        let url = match api.ends_with('/') {
-            true => format!("{}{}", api, endpoint),
-            false => format!("{}/{}", api, endpoint),
-        };
-
         let mut headers = HeaderMap::new();
         headers.insert(
             "STATSIG-API-KEY",
@@ -94,7 +129,7 @@ impl StatsigNetwork {
         body.insert("statsigMetadata", self.statsig_metadata.clone());
 
         self.client
-            .post(url)
+            .post(self.get_api_url(endpoint))
             .json(&body)
             .headers(headers)
             .send()
