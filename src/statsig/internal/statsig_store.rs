@@ -89,7 +89,7 @@ impl StatsigStore {
             Some(NoUpdates(..)) => return None,
             None => {
                 println!("[Statsig] No result returned from download_config_specs");
-                return None
+                return None;
             }
         };
 

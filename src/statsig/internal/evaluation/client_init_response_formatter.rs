@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use base64;
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use serde_json::Value::Null;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use base64;
-use base64::Engine;
-use base64::prelude::BASE64_STANDARD;
 
 use crate::statsig::internal::data_types::APISpec;
 use crate::statsig::internal::statsig_store::StatsigStore;
@@ -195,11 +195,16 @@ fn populate_layer_fields(
         );
         local_result.insert(
             "explicit_parameters".into(),
-            json!(delegate_spec.explicit_parameters.as_ref().unwrap_or(&vec![])),
+            json!(delegate_spec
+                .explicit_parameters
+                .as_ref()
+                .unwrap_or(&vec![])),
         );
         local_result.insert(
             "undelegated_secondary_exposures".into(),
-            json!(clean_exposures(&delegate_result.undelegated_secondary_exposures)),
+            json!(clean_exposures(
+                &delegate_result.undelegated_secondary_exposures
+            )),
         );
 
         local_result
@@ -220,7 +225,6 @@ fn merge_json_value(left: &Value, right: Value) -> Value {
 
     left.clone()
 }
-
 
 fn merge_hash_value(left: &mut HashMap<String, Value>, right: HashMap<String, Value>) {
     for (key, value) in right.iter() {
