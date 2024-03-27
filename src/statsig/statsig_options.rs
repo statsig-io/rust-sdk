@@ -15,7 +15,7 @@ impl StatsigOptions {
         StatsigOptions {
             environment: None,
             api_override: "https://statsigapi.net/v1".to_string(),
-            api_for_download_config_specs: "https://api.statsigcdn.com".to_string(),
+            api_for_download_config_specs: "https://api.statsigcdn.com/v1".to_string(),
             rulesets_sync_interval_ms: 10_000,
             logger_max_queue_size: 500,
             logger_flush_interval_ms: 60_000,
