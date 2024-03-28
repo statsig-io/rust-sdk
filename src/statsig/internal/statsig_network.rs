@@ -102,12 +102,6 @@ impl StatsigNetwork {
         endpoint: &str,
         query_params: &HashMap<&str, &str>,
     ) -> Result<Response, Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "STATSIG-API-KEY",
-            self.secret.parse().expect("statsig_api_key -> header"),
-        );
-
         self.client
             .get(self.get_api_url(endpoint))
             .query(query_params)
