@@ -41,10 +41,10 @@ impl StatsigNetwork {
     ) -> Option<APIDownloadedConfigsResponse> {
         let res = match self.dcs_api == "https://api.statsigcdn.com/v1" {
             true => self
-                .make_get_request(
-                    &format!("download_config_specs/{}.json", self.secret),
-                    &HashMap::from([("sinceTime", since_time.to_string().as_str())]),
-                )
+                .make_get_request(&format!(
+                    "download_config_specs/{}.json?sinceTime={}",
+                    self.secret, since_time
+                ))
                 .await
                 .ok()?,
             false => {
@@ -97,16 +97,8 @@ impl StatsigNetwork {
         }
     }
 
-    async fn make_get_request(
-        &self,
-        endpoint: &str,
-        query_params: &HashMap<&str, &str>,
-    ) -> Result<Response, Error> {
-        self.client
-            .get(self.get_api_url(endpoint))
-            .query(query_params)
-            .send()
-            .await
+    async fn make_get_request(&self, endpoint: &str) -> Result<Response, Error> {
+        self.client.get(self.get_api_url(endpoint)).send().await
     }
 
     async fn make_post_request(
