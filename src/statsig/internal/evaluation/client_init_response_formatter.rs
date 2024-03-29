@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use crate::statsig::internal::data_types::APISpec;
 use crate::statsig::internal::statsig_store::StatsigStore;
 use crate::statsig::internal::EvalResult;
-use crate::{unwrap_or_return, unwrap_or_return_noop, StatsigUser};
+use crate::{unwrap_or_return, unwrap_or_noop, StatsigUser};
 
 type SecondaryExposures = Option<Vec<HashMap<String, String>>>;
 
@@ -171,7 +171,7 @@ fn populate_layer_fields(
     );
     result.insert("undelegated_secondary_exposures".into(), json!([]));
 
-    let delegate = unwrap_or_return_noop!(&eval_result.config_delegate);
+    let delegate = unwrap_or_noop!(&eval_result.config_delegate);
     if delegate.is_empty() {
         return;
     }

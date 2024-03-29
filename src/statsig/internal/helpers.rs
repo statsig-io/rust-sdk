@@ -21,7 +21,7 @@ macro_rules! unwrap_or_return {
 }
 
 #[macro_export]
-macro_rules! unwrap_or_return_noop {
+macro_rules! unwrap_or_noop {
     ($res: expr) => {
         match $res {
             Some(v) => v,
