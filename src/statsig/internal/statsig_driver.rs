@@ -140,8 +140,7 @@ impl StatsigDriver {
 
     pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
         let normalized_user = self.get_normalized_user_copy(user);
-        self
-            .evaluator
+        self.evaluator
             .get_client_initialize_response(&normalized_user)
     }
 

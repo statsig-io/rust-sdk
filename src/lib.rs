@@ -39,7 +39,7 @@ impl Statsig {
                 if read_guard.is_some() {
                     return Some(StatsigError::already_initialized());
                 }
-            },
+            }
             None => return Some(StatsigError::singleton_lock_failure()),
         };
 
