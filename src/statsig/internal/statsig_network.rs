@@ -72,7 +72,7 @@ impl StatsigNetwork {
         }
 
         if let Ok(no_updates) = from_value::<APIDownloadedConfigsNoUpdates>(json_value.clone()) {
-            if no_updates.has_updates == false {
+            if !no_updates.has_updates {
                 return Some(NoUpdates(no_updates));
             }
         }

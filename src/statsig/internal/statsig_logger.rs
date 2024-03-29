@@ -69,6 +69,7 @@ impl StatsigLogger {
         let events = self.events.clone();
         let network = self.network.clone();
 
+        #[allow(clippy::await_holding_lock)]
         self.runtime_handle.block_on(async move {
             // Purposely hold onto the running jobs lock while waiting for
             // all job handles to complete to ensure no new job handles
