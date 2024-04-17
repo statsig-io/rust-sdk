@@ -37,22 +37,22 @@ impl Statsig {
         match DRIVER.read().ok() {
             Some(read_guard) => {
                 if read_guard.is_some() {
-                    return Some(StatsigError::already_initialized());
+                    return Some(StatsigError::AlreadyInitialized);
                 }
             }
-            None => return Some(StatsigError::singleton_lock_failure()),
+            None => return Some(StatsigError::SingletonLockFailure),
         };
 
         let driver = unwrap_or_return!(
             StatsigDriver::new(secret, options).ok(),
-            Some(StatsigError::instantiation_failure())
+            Some(StatsigError::InstantiationFailure)
         );
 
         driver.initialize().await;
 
         let mut write_guard = unwrap_or_return!(
             DRIVER.write().ok(),
-            Some(StatsigError::singleton_lock_failure())
+            Some(StatsigError::SingletonLockFailure)
         );
 
         *write_guard = Some(driver);
@@ -64,7 +64,7 @@ impl Statsig {
         match spawn_blocking(move || {
             let mut write_guard = unwrap_or_return!(
                 driver_clone.write().ok(),
-                Err(StatsigError::singleton_lock_failure())
+                Err(StatsigError::SingletonLockFailure)
             );
 
             if let Some(driver) = write_guard.take() {
@@ -75,7 +75,7 @@ impl Statsig {
         .await
         {
             Ok(_t) => None,
-            Err(_e) => Some(StatsigError::shutdown_failure()),
+            Err(_e) => Some(StatsigError::ShutdownFailure),
         }
     }
 
@@ -135,9 +135,9 @@ impl Statsig {
             if let Some(driver) = guard.deref() {
                 return func(driver);
             }
-            return Err(StatsigError::uninitialized());
+            return Err(StatsigError::Uninitialized);
         }
-        Err(StatsigError::singleton_lock_failure())
+        Err(StatsigError::SingletonLockFailure)
     }
 
     #[doc(hidden)]
