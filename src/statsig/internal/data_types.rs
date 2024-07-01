@@ -46,7 +46,7 @@ pub struct APICondition {
     pub id_type: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct APIDownloadedConfigsWithUpdates {
     pub feature_gates: Vec<APISpec>,
     pub dynamic_configs: Vec<APISpec>,

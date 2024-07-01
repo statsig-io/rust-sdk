@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::StatsigDatastore;
 
 pub struct StatsigOptions {
     pub environment: Option<HashMap<String, String>>,
@@ -8,6 +11,7 @@ pub struct StatsigOptions {
     pub logger_max_queue_size: u32,
     pub logger_flush_interval_ms: u32,
     pub disable_user_agent_support: bool,
+    pub datastore: Option<Arc<dyn StatsigDatastore>>,
 }
 
 impl Default for StatsigOptions {
@@ -20,6 +24,7 @@ impl Default for StatsigOptions {
             logger_max_queue_size: 500,
             logger_flush_interval_ms: 60_000,
             disable_user_agent_support: false,
+            datastore: None,
         }
     }
 }

@@ -59,11 +59,12 @@ impl StatsigDriver {
 
     pub async fn initialize(&self) {
         // bubble up error?
-        self.store.download_config_specs().await;
+        self.store.initialize().await;
     }
 
     pub fn shutdown(&self) {
         self.logger.flush_blocking();
+        self.store.shutdown();
 
         if let Ok(mut lock) = self.runtime.lock() {
             if let Some(runtime) = lock.take() {

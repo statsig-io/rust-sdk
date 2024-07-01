@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
-use crate::statsig::internal::data_types::APIDownloadedConfigsResponse::{NoUpdates, WithUpdates};
-use crate::statsig::internal::data_types::{
-    APIDownloadedConfigsNoUpdates, APIDownloadedConfigsResponse, APIDownloadedConfigsWithUpdates,
-};
 use http::HeaderMap;
 use reqwest::{Client, Error, Response};
-use serde_json::{from_value, json, Value};
+use serde_json::{json, Value};
 
 use crate::statsig::internal::statsig_event_internal::StatsigEventInternal;
 use crate::StatsigOptions;
@@ -35,10 +31,7 @@ impl StatsigNetwork {
         }
     }
 
-    pub async fn download_config_specs(
-        &self,
-        since_time: u64,
-    ) -> Option<APIDownloadedConfigsResponse> {
+    pub async fn download_config_specs(&self, since_time: u64) -> Option<String> {
         let res = match self.dcs_api == "https://api.statsigcdn.com/v1" {
             true => self
                 .make_get_request(&format!(
@@ -64,20 +57,7 @@ impl StatsigNetwork {
             return None;
         }
 
-        let text = res.text().await.ok()?;
-        let json_value: Value = serde_json::from_str(&text).ok()?;
-        if let Ok(with_updates) = from_value::<APIDownloadedConfigsWithUpdates>(json_value.clone())
-        {
-            return Some(WithUpdates(with_updates));
-        }
-
-        if let Ok(no_updates) = from_value::<APIDownloadedConfigsNoUpdates>(json_value.clone()) {
-            if !no_updates.has_updates {
-                return Some(NoUpdates(no_updates));
-            }
-        }
-
-        None
+        res.text().await.ok()
     }
 
     pub async fn send_events(&self, events: Vec<StatsigEventInternal>) -> Option<Response> {

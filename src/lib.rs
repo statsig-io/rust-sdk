@@ -10,6 +10,7 @@ use statsig::internal::StatsigDriver;
 use statsig::statsig_error::StatsigError;
 //
 // re-export public objects to top level
+pub use statsig::statsig_datastore::StatsigDatastore;
 pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;

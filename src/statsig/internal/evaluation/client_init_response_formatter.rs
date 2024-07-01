@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use crate::statsig::internal::data_types::APISpec;
 use crate::statsig::internal::statsig_store::StatsigStore;
 use crate::statsig::internal::EvalResult;
-use crate::{unwrap_or_return, unwrap_or_noop, StatsigUser};
+use crate::{unwrap_or_noop, unwrap_or_return, StatsigUser};
 
 type SecondaryExposures = Option<Vec<HashMap<String, String>>>;
 
