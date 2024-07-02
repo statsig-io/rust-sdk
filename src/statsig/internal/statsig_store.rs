@@ -38,7 +38,7 @@ impl StatsigStore {
 
     pub async fn initialize(&self) {
         if let Some(store) = &self.datastore {
-            store.initialize();
+            store.initialize().await;
         }
         self.initialize_config_specs().await;
         self.spawn_bg_thread();
@@ -108,9 +108,9 @@ impl StatsigStore {
         });
     }
 
-    fn save_config_specs_to_datastore(datastore: &Option<Arc<dyn StatsigDatastore>>, specs: &str) {
+    async fn save_config_specs_to_datastore(datastore: &Option<Arc<dyn StatsigDatastore>>, specs: &str) {
         if let Some(store) = datastore {
-            store.set(CONFIG_SPEC_KEY, specs);
+            store.set(CONFIG_SPEC_KEY, specs).await;
         }
     }
 
@@ -127,7 +127,7 @@ impl StatsigStore {
     }
 
     async fn fetch_config_specs_from_datastore(datastore: &dyn StatsigDatastore) -> Option<String> {
-        datastore.get(CONFIG_SPEC_KEY)
+        datastore.get(CONFIG_SPEC_KEY).await
     }
 
     async fn fetch_and_process_configs_from_network(
@@ -147,7 +147,7 @@ impl StatsigStore {
             let specs_json = serde_json::to_string(&r);
             Self::set_downloaded_config_specs(specs, r);
             if let Ok(specs_string) = specs_json {
-                Self::save_config_specs_to_datastore(datastore, &specs_string);
+                Self::save_config_specs_to_datastore(datastore, &specs_string).await;
             }
             return Some(());
         }

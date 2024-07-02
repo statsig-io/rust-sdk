@@ -25,3 +25,4 @@ sha2 = "0.10.6"
 tokio = { version = "1.22.0", features = ["rt-multi-thread"] }
 uaparser = "0.6.0"
 thiserror = "1.0.58"
+async-trait = "0.1"
