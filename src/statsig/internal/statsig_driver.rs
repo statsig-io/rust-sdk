@@ -1,16 +1,17 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{ Arc, Mutex };
 use std::time::Duration;
 
-use serde_json::{from_value, Value};
-use tokio::runtime::{Builder, Runtime};
+use serde::de::DeserializeOwned;
+use serde_json::{ from_value, Value };
+use tokio::runtime::{ Builder, Runtime };
 
-use crate::statsig::internal::statsig_event_internal::{make_config_exposure, make_layer_exposure};
+use crate::statsig::internal::statsig_event_internal::{ make_config_exposure, make_layer_exposure };
 use crate::StatsigUser;
-use crate::{LayerLogData, StatsigEvent, StatsigOptions};
+use crate::{ LayerLogData, StatsigEvent, StatsigOptions };
 
 use super::evaluation::StatsigEvaluator;
-use super::statsig_event_internal::{finalize_event, make_gate_exposure};
+use super::statsig_event_internal::{ finalize_event, make_gate_exposure };
 use super::statsig_logger::StatsigLogger;
 use super::statsig_network::StatsigNetwork;
 use super::statsig_store::StatsigStore;
@@ -28,23 +29,22 @@ pub struct StatsigDriver {
 
 impl StatsigDriver {
     pub fn new(secret_key: &str, options: StatsigOptions) -> std::io::Result<Self> {
-        let runtime = match Builder::new_multi_thread()
-            .worker_threads(3)
-            .thread_name("statsig")
-            .enable_all()
-            .build()
+        let runtime = match
+            Builder::new_multi_thread()
+                .worker_threads(3)
+                .thread_name("statsig")
+                .enable_all()
+                .build()
         {
             Ok(rt) => rt,
-            Err(e) => return Err(e),
+            Err(e) => {
+                return Err(e);
+            }
         };
 
         let network = Arc::from(StatsigNetwork::new(secret_key, &options));
         let logger = StatsigLogger::new(runtime.handle(), network.clone(), &options);
-        let store = Arc::from(StatsigStore::new(
-            runtime.handle(),
-            network.clone(),
-            &options,
-        ));
+        let store = Arc::from(StatsigStore::new(runtime.handle(), network.clone(), &options));
         let evaluator = StatsigEvaluator::new(store.clone(), &options);
 
         Ok(StatsigDriver {
@@ -77,37 +77,43 @@ impl StatsigDriver {
         let normalized_user = &self.get_normalized_user_copy(user);
         let eval_result = self.evaluator.check_gate(normalized_user, gate_name);
 
-        self.logger.enqueue(make_gate_exposure(
-            normalized_user,
-            gate_name,
-            &eval_result,
-            &self.options.environment,
-        ));
+        self.logger.enqueue(
+            make_gate_exposure(normalized_user, gate_name, &eval_result, &self.options.environment)
+        );
 
         eval_result.bool_value
     }
 
-    pub fn get_config(&self, user: &StatsigUser, config_name: &str) -> DynamicConfig {
+    pub fn get_config<T: DeserializeOwned>(
+        &self,
+        user: &StatsigUser,
+        config_name: &str
+    ) -> DynamicConfig<T> {
         let normalized_user = &self.get_normalized_user_copy(user);
         let eval_result = self.evaluator.get_config(normalized_user, config_name);
 
-        self.logger.enqueue(make_config_exposure(
-            normalized_user,
-            config_name,
-            &eval_result,
-            &self.options.environment,
-        ));
-
-        let mut value = HashMap::from([]);
-        if let Some(json_value) = eval_result.json_value {
-            if let Ok(deserialized) = from_value(json_value) {
-                value = deserialized;
-            }
-        }
+        self.logger.enqueue(
+            make_config_exposure(
+                normalized_user,
+                config_name,
+                &eval_result,
+                &self.options.environment
+            )
+        );
 
         DynamicConfig {
             name: config_name.to_string(),
-            value,
+            value: match eval_result.json_value {
+                Some(json_value) =>
+                    match serde_json::from_value::<T>(json_value) {
+                        Err(e) => {
+                            eprintln!("[Statsig] Failed to deserialize config value: {}", e);
+                            None
+                        }
+                        Ok(deserialized) => Some(deserialized),
+                    }
+                None => None,
+            },
             rule_id: eval_result.rule_id,
         }
     }
@@ -135,29 +141,29 @@ impl StatsigDriver {
     }
 
     pub fn log_event(&self, user: &StatsigUser, event: StatsigEvent) {
-        self.logger
-            .enqueue(finalize_event(user, event, &self.options.environment))
+        self.logger.enqueue(finalize_event(user, event, &self.options.environment))
     }
 
     pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
         let normalized_user = self.get_normalized_user_copy(user);
-        self.evaluator
-            .get_client_initialize_response(&normalized_user)
+        self.evaluator.get_client_initialize_response(&normalized_user)
     }
 
     pub(crate) fn log_layer_parameter_exposure(
         &self,
         layer: &Layer,
         parameter_name: &str,
-        log_data: &LayerLogData,
+        log_data: &LayerLogData
     ) {
-        self.logger.enqueue(make_layer_exposure(
-            &log_data.user,
-            &layer.name,
-            parameter_name,
-            &log_data.eval_result,
-            &self.options.environment,
-        ));
+        self.logger.enqueue(
+            make_layer_exposure(
+                &log_data.user,
+                &layer.name,
+                parameter_name,
+                &log_data.eval_result,
+                &self.options.environment
+            )
+        );
     }
 
     fn get_normalized_user_copy(&self, user: &StatsigUser) -> StatsigUser {
