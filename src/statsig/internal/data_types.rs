@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct APISpec {
     pub name: String,
@@ -19,7 +19,7 @@ pub struct APISpec {
     pub is_active: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct APIRule {
     pub name: String,
@@ -34,7 +34,7 @@ pub struct APIRule {
     pub is_experiment_group: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct APICondition {
     #[serde(rename = "type")]
@@ -46,7 +46,7 @@ pub struct APICondition {
     pub id_type: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct APIDownloadedConfigsWithUpdates {
     pub feature_gates: Vec<APISpec>,
     pub dynamic_configs: Vec<APISpec>,
@@ -54,7 +54,7 @@ pub struct APIDownloadedConfigsWithUpdates {
     pub id_lists: Option<HashMap<String, bool>>,
     pub layers: Option<HashMap<String, Vec<String>>>,
     pub has_updates: bool,
-    pub time: Number,
+    pub time: u64,
 }
 
 #[derive(Deserialize)]
