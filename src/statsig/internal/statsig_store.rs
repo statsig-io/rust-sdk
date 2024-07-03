@@ -143,19 +143,19 @@ impl StatsigStore {
                 return None;
             }
         };
-        if let Some(WithUpdates(r)) = configs {
-            let last_sync_time = match specs.read().ok() {
-                Some(t) => t.last_sync_time,
-                _ => 0,
-            };
-
-            if last_sync_time <= r.time {
-                let specs_json = serde_json::to_string(&r);
-                Self::set_downloaded_config_specs(specs, r);
-                if let Ok(specs_string) = specs_json {
-                    Self::save_config_specs_to_datastore(datastore, &specs_string).await;
+        if let Some(WithUpdates(r)) = configs { 
+            let valid_update = Self::set_downloaded_config_specs(specs, r.clone());
+            match valid_update {
+                Some(()) => {
+                    let specs_json = serde_json::to_string(&r);
+                    if let Ok(specs_string) = specs_json {
+                        Self::save_config_specs_to_datastore(datastore, &specs_string).await;
+                    }
+                    return Some(())
                 }
-                return Some(());
+                None => {
+                    return None
+                }
             }
         }
         None
@@ -177,7 +177,14 @@ impl StatsigStore {
     fn set_downloaded_config_specs(
         specs: &RwLock<Specs>,
         downloaded_configs: APIDownloadedConfigsWithUpdates,
-    ) {
+    ) -> Option<()> {
+        let last_sync_time = match specs.read().ok() {
+            Some(t) => t.last_sync_time,
+            _ => 0,
+        };
+        if downloaded_configs.time <= last_sync_time {
+            return None;
+        }
         let mut new_specs = Specs::new();
         for feature_gate in downloaded_configs.feature_gates {
             new_specs
@@ -209,6 +216,7 @@ impl StatsigStore {
             new_specs.last_sync_time = downloaded_configs.time;
             mut_specs.update(new_specs);
         };
+        return Some(())
     }
 
     fn parse_config_specs(text: &str) -> Option<APIDownloadedConfigsResponse> {
