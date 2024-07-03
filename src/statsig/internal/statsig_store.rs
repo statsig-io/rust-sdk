@@ -144,12 +144,19 @@ impl StatsigStore {
             }
         };
         if let Some(WithUpdates(r)) = configs {
-            let specs_json = serde_json::to_string(&r);
-            Self::set_downloaded_config_specs(specs, r);
-            if let Ok(specs_string) = specs_json {
-                Self::save_config_specs_to_datastore(datastore, &specs_string).await;
+            let last_sync_time = match specs.read().ok() {
+                Some(t) => t.last_sync_time,
+                _ => 0,
+            };
+
+            if last_sync_time <= r.time {
+                let specs_json = serde_json::to_string(&r);
+                Self::set_downloaded_config_specs(specs, r);
+                if let Ok(specs_string) = specs_json {
+                    Self::save_config_specs_to_datastore(datastore, &specs_string).await;
+                }
+                return Some(());
             }
-            return Some(());
         }
         None
     }
@@ -199,10 +206,7 @@ impl StatsigStore {
         }
 
         if let Ok(mut mut_specs) = specs.write() {
-            new_specs.last_sync_time = downloaded_configs
-                .time
-                .as_u64()
-                .unwrap_or(mut_specs.last_sync_time);
+            new_specs.last_sync_time = downloaded_configs.time;
             mut_specs.update(new_specs);
         };
     }

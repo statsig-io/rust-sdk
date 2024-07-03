@@ -54,7 +54,7 @@ pub struct APIDownloadedConfigsWithUpdates {
     pub id_lists: Option<HashMap<String, bool>>,
     pub layers: Option<HashMap<String, Vec<String>>>,
     pub has_updates: bool,
-    pub time: Number,
+    pub time: u64,
 }
 
 #[derive(Deserialize)]
