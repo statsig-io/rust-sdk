@@ -1,7 +1,7 @@
 extern crate core;
 
 use std::ops::Deref;
-use std::sync::{ Arc, RwLock };
+use std::sync::{Arc, RwLock};
 
 use lazy_static::lazy_static;
 use serde::de::DeserializeOwned;
@@ -17,7 +17,7 @@ pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
 use tokio::task::spawn_blocking;
 
-use crate::statsig::internal::{ DynamicConfig, Layer, LayerLogData };
+use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData};
 
 mod statsig;
 
@@ -34,7 +34,7 @@ impl Statsig {
 
     pub async fn initialize_with_options(
         secret: &str,
-        options: StatsigOptions
+        options: StatsigOptions,
     ) -> Option<StatsigError> {
         match DRIVER.read().ok() {
             Some(read_guard) => {
@@ -65,18 +65,18 @@ impl Statsig {
 
     pub async fn shutdown() -> Option<StatsigError> {
         let driver_clone = Arc::clone(&DRIVER);
-        match
-            spawn_blocking(move || {
-                let mut write_guard = unwrap_or_return!(
-                    driver_clone.write().ok(),
-                    Err(StatsigError::SingletonLockFailure)
-                );
+        match spawn_blocking(move || {
+            let mut write_guard = unwrap_or_return!(
+                driver_clone.write().ok(),
+                Err(StatsigError::SingletonLockFailure)
+            );
 
-                if let Some(driver) = write_guard.take() {
-                    driver.shutdown();
-                }
-                Ok(())
-            }).await
+            if let Some(driver) = write_guard.take() {
+                driver.shutdown();
+            }
+            Ok(())
+        })
+        .await
         {
             Ok(_t) => None,
             Err(_e) => Some(StatsigError::ShutdownFailure),
@@ -89,14 +89,14 @@ impl Statsig {
 
     pub fn get_config<T: DeserializeOwned>(
         user: &StatsigUser,
-        config_name: &str
+        config_name: &str,
     ) -> Result<DynamicConfig<T>, StatsigError> {
         Self::use_driver(|driver| Ok(driver.get_config(user, config_name)))
     }
 
     pub fn get_experiment<T: DeserializeOwned>(
         user: &StatsigUser,
-        experiment_name: &str
+        experiment_name: &str,
     ) -> Result<DynamicConfig<T>, StatsigError> {
         Self::get_config(user, experiment_name)
     }
@@ -124,7 +124,7 @@ impl Statsig {
     pub(crate) fn log_layer_parameter_exposure(
         layer: &Layer,
         parameter_name: &str,
-        log_data: &LayerLogData
+        log_data: &LayerLogData,
     ) {
         let _ = Self::use_driver(|driver| {
             driver.log_layer_parameter_exposure(layer, parameter_name, log_data);
@@ -133,7 +133,7 @@ impl Statsig {
     }
 
     fn use_driver<T>(
-        func: impl FnOnce(&StatsigDriver) -> Result<T, StatsigError>
+        func: impl FnOnce(&StatsigDriver) -> Result<T, StatsigError>,
     ) -> Result<T, StatsigError> {
         if let Ok(guard) = DRIVER.read() {
             if let Some(driver) = guard.deref() {
@@ -151,7 +151,8 @@ impl Statsig {
             if let Some(driver) = guard.take() {
                 let _ = spawn_blocking(move || {
                     driver.shutdown();
-                }).await;
+                })
+                .await;
             }
         }
     }
