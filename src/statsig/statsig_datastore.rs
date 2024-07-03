@@ -7,7 +7,7 @@ pub trait StatsigDatastore: Send + Sync {
     async fn initialize(&self);
     async fn get(&self, key: &str) -> Option<String>;
     async fn set(&self, key: &str, value: &str);
-    async fn shutdown(&self);
+    fn shutdown(&self);
 
     // Returns whether this datastore should be used instead of the Statsig network for
     // periodically updating config specs.
