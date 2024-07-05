@@ -182,7 +182,7 @@ impl StatsigStore {
             Some(t) => t.last_sync_time,
             _ => 0,
         };
-        if downloaded_configs.time <= last_sync_time {
+        if downloaded_configs.time < last_sync_time {
             return None;
         }
         let mut new_specs = Specs::new();
