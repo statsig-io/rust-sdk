@@ -187,3 +187,9 @@ impl StatsigDriver {
         }
     }
 }
+
+// `tokio::test` sets up an existing runtime, likely how most users of this library will use it.
+#[tokio::test]
+async fn test_driver_cleanup_doesnt_panic() {
+    StatsigDriver::new(&"secret key", StatsigOptions::default()).unwrap();
+}
