@@ -1,4 +1,5 @@
 use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tokio::runtime::Handle;
@@ -17,6 +18,7 @@ pub struct StatsigLogger {
     flush_interval_ms: u32,
     bg_thread_handle: Option<JoinHandle<()>>,
     running_jobs: Arc<RwLock<Vec<JoinHandle<()>>>>,
+    is_shutdown: Arc<AtomicBool>
 }
 
 impl StatsigLogger {
@@ -33,6 +35,7 @@ impl StatsigLogger {
             flush_interval_ms: options.logger_flush_interval_ms,
             running_jobs: Arc::from(RwLock::from(vec![])),
             bg_thread_handle: None,
+            is_shutdown: Arc::new(AtomicBool::new(false))
         };
         inst.spawn_bg_thread();
         inst
@@ -65,7 +68,8 @@ impl StatsigLogger {
         }
     }
 
-    pub fn flush_blocking(&self) {
+    pub fn shutdown(&self) {
+        self.is_shutdown.store(true, Ordering::Relaxed);
         let events = self.events.clone();
         let network = self.network.clone();
 
@@ -106,9 +110,13 @@ impl StatsigLogger {
         let events = self.events.clone();
         let network = self.network.clone();
         let interval = Duration::from_millis(self.flush_interval_ms as u64);
+        let is_shutdown = self.is_shutdown.clone();
 
         self.bg_thread_handle = Some(self.runtime_handle.spawn(async move {
             loop {
+                if is_shutdown.load(Ordering::Relaxed) {
+                    break;
+                }
                 Self::flush_impl(&network, &events).await;
                 tokio::time::sleep(interval).await;
             }

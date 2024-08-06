@@ -1,4 +1,5 @@
 use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tokio::runtime::Handle;
@@ -19,6 +20,7 @@ pub struct StatsigStore {
     network: Arc<StatsigNetwork>,
     datastore: Option<Arc<dyn StatsigDatastore>>,
     sync_interval_ms: u32,
+    is_shutdown: Arc<AtomicBool>
 }
 
 impl StatsigStore {
@@ -33,6 +35,7 @@ impl StatsigStore {
             datastore: options.datastore.clone(),
             specs: Arc::from(RwLock::from(Specs::new())),
             sync_interval_ms: options.rulesets_sync_interval_ms,
+            is_shutdown: Arc::new(AtomicBool::new(false))
         }
     }
 
@@ -45,6 +48,8 @@ impl StatsigStore {
     }
 
     pub fn shutdown(&self) {
+        self.is_shutdown.store(true, Ordering::Relaxed);
+
         if let Some(store) = &self.datastore {
             store.shutdown();
         }
@@ -91,10 +96,20 @@ impl StatsigStore {
         let datastore = self.datastore.clone();
         let specs = self.specs.clone();
         let interval = Duration::from_millis(self.sync_interval_ms as u64);
+        let is_shutdown = self.is_shutdown.clone();
 
         self.runtime_handle.spawn(async move {
             loop {
+                if is_shutdown.load(Ordering::Relaxed) {
+                    break;
+                }
+
                 tokio::time::sleep(interval).await;
+
+                if is_shutdown.load(Ordering::Relaxed) {
+                    break;
+                }
+
                 match &datastore {
                     Some(store) if store.should_be_used_for_querying_updates() => {
                         Self::fetch_and_process_configs_from_datstore(&**store, &specs).await;

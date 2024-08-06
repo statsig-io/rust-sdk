@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde::de::DeserializeOwned;
 use serde_json::{from_value, Value};
-use tokio::runtime::{Builder, Runtime};
+use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::statsig::internal::statsig_event_internal::{make_config_exposure, make_layer_exposure};
 use crate::StatsigUser;
@@ -21,6 +21,8 @@ use super::Layer;
 pub struct StatsigDriver {
     pub secret_key: String,
     pub options: StatsigOptions,
+    // Stores the tokio runtime if it is owned by the driver and has not yet
+    // been shutdown.
     runtime: Mutex<Option<Runtime>>,
     store: Arc<StatsigStore>,
     evaluator: StatsigEvaluator,
@@ -29,31 +31,27 @@ pub struct StatsigDriver {
 
 impl StatsigDriver {
     pub fn new(secret_key: &str, options: StatsigOptions) -> std::io::Result<Self> {
-        let runtime = match Builder::new_multi_thread()
-            .worker_threads(3)
-            .thread_name("statsig")
-            .enable_all()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(e) => {
-                return Err(e);
-            }
+        let (opt_runtime, handle) = if let Ok(handle) = Handle::try_current() {
+            (None, handle)
+        } else {
+            let rt = Builder::new_multi_thread()
+                .worker_threads(3)
+                .thread_name("statsig")
+                .enable_all()
+                .build()?;
+            let handle = rt.handle().clone();
+            (Some(rt), handle)
         };
 
         let network = Arc::from(StatsigNetwork::new(secret_key, &options));
-        let logger = StatsigLogger::new(runtime.handle(), network.clone(), &options);
-        let store = Arc::from(StatsigStore::new(
-            runtime.handle(),
-            network.clone(),
-            &options,
-        ));
+        let logger = StatsigLogger::new(&handle, network.clone(), &options);
+        let store = Arc::from(StatsigStore::new(&handle, network.clone(), &options));
         let evaluator = StatsigEvaluator::new(store.clone(), &options);
 
         Ok(StatsigDriver {
             secret_key: secret_key.to_string(),
             options,
-            runtime: Mutex::from(Some(runtime)),
+            runtime: Mutex::from(opt_runtime),
             store,
             evaluator,
             logger,
@@ -66,7 +64,7 @@ impl StatsigDriver {
     }
 
     pub fn shutdown(&self) {
-        self.logger.flush_blocking();
+        self.logger.shutdown();
         self.store.shutdown();
 
         if let Ok(mut lock) = self.runtime.lock() {
@@ -186,4 +184,10 @@ impl StatsigDriver {
             }
         }
     }
+}
+
+// `tokio::test` sets up an existing runtime, likely how most users of this library will use it.
+#[tokio::test]
+async fn test_driver_cleanup_doesnt_panic() {
+    StatsigDriver::new(&"secret key", StatsigOptions::default()).unwrap();
 }
