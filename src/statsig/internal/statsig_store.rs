@@ -1,5 +1,5 @@
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use tokio::runtime::Handle;
@@ -11,16 +11,18 @@ use crate::{StatsigDatastore, StatsigOptions};
 use statsig_datastore::CONFIG_SPEC_KEY;
 
 use super::data_types::{APIDownloadedConfigsResponse, APIDownloadedConfigsWithUpdates, APISpec};
+use super::evaluation::eval_details::{EvalDetails, EvaluationReason};
 use super::statsig_network::StatsigNetwork;
 
 pub struct StatsigStore {
     pub specs: Arc<RwLock<Specs>>,
+    pub eval_details: Arc<RwLock<EvalDetails>>,
 
     runtime_handle: Handle,
     network: Arc<StatsigNetwork>,
     datastore: Option<Arc<dyn StatsigDatastore>>,
     sync_interval_ms: u32,
-    is_shutdown: Arc<AtomicBool>
+    is_shutdown: Arc<AtomicBool>,
 }
 
 impl StatsigStore {
@@ -35,7 +37,8 @@ impl StatsigStore {
             datastore: options.datastore.clone(),
             specs: Arc::from(RwLock::from(Specs::new())),
             sync_interval_ms: options.rulesets_sync_interval_ms,
-            is_shutdown: Arc::new(AtomicBool::new(false))
+            is_shutdown: Arc::new(AtomicBool::new(false)),
+            eval_details: Arc::new(RwLock::new(EvalDetails::default())),
         }
     }
 
@@ -59,7 +62,7 @@ impl StatsigStore {
         &self,
         spec_type: &str,
         spec_name: &str,
-        func: impl Fn(Option<&APISpec>) -> T,
+        func: impl Fn(Option<&APISpec>, EvalDetails) -> T,
     ) -> T {
         let specs = self.specs.read().expect("Specs read lock");
         let specs_map = match spec_type {
@@ -68,7 +71,12 @@ impl StatsigStore {
             _ => &specs.gates,
         };
 
-        func(specs_map.get(spec_name))
+        func(specs_map.get(spec_name), self.get_eval_details())
+    }
+
+    pub fn get_eval_details(&self) -> EvalDetails {
+        let eval_details = self.eval_details.read().unwrap();
+        eval_details.clone()
     }
 
     pub fn get_layer_name_for_experiment(&self, experiment_name: &String) -> Option<String> {
@@ -79,22 +87,34 @@ impl StatsigStore {
     async fn initialize_config_specs(&self) {
         let mut response = None;
         if let Some(store) = &self.datastore {
-            response = Self::fetch_and_process_configs_from_datstore(&**store, &self.specs).await;
+            response = Self::fetch_and_process_configs_from_datstore(
+                &**store,
+                &self.specs,
+                &self.eval_details,
+            )
+            .await;
         }
         if response.is_none() {
             Self::fetch_and_process_configs_from_network(
                 &self.network,
                 &self.datastore,
                 &self.specs,
+                &self.eval_details,
             )
             .await;
+        }
+        if let Ok(mut eval_details) = self.eval_details.write() {
+            if let Ok(specs) = self.specs.read() {
+                eval_details.init_time = specs.last_sync_time
+            }
         }
     }
 
     fn spawn_bg_thread(&self) {
         let network = self.network.clone();
         let datastore = self.datastore.clone();
-        let specs = self.specs.clone();
+        let specs: Arc<RwLock<Specs>> = self.specs.clone();
+        let eval_details = self.eval_details.clone();
         let interval = Duration::from_millis(self.sync_interval_ms as u64);
         let is_shutdown = self.is_shutdown.clone();
 
@@ -112,18 +132,31 @@ impl StatsigStore {
 
                 match &datastore {
                     Some(store) if store.should_be_used_for_querying_updates() => {
-                        Self::fetch_and_process_configs_from_datstore(&**store, &specs).await;
+                        Self::fetch_and_process_configs_from_datstore(
+                            &**store,
+                            &specs,
+                            &eval_details,
+                        )
+                        .await;
                     }
                     _ => {
-                        Self::fetch_and_process_configs_from_network(&network, &datastore, &specs)
-                            .await;
+                        Self::fetch_and_process_configs_from_network(
+                            &network,
+                            &datastore,
+                            &specs,
+                            &eval_details,
+                        )
+                        .await;
                     }
                 };
             }
         });
     }
 
-    async fn save_config_specs_to_datastore(datastore: &Option<Arc<dyn StatsigDatastore>>, specs: &str) {
+    async fn save_config_specs_to_datastore(
+        datastore: &Option<Arc<dyn StatsigDatastore>>,
+        specs: &str,
+    ) {
         if let Some(store) = datastore {
             store.set(CONFIG_SPEC_KEY, specs).await;
         }
@@ -149,6 +182,7 @@ impl StatsigStore {
         network: &StatsigNetwork,
         datastore: &Option<Arc<dyn StatsigDatastore>>,
         specs: &RwLock<Specs>,
+        eval_details: &Arc<RwLock<EvalDetails>>,
     ) -> Option<()> {
         let response = Self::fetch_config_specs_from_network(network, specs).await;
         let configs = match response {
@@ -158,19 +192,22 @@ impl StatsigStore {
                 return None;
             }
         };
-        if let Some(WithUpdates(r)) = configs { 
-            let valid_update = Self::set_downloaded_config_specs(specs, r.clone());
+        if let Some(WithUpdates(r)) = configs {
+            let valid_update = Self::set_downloaded_config_specs(
+                specs,
+                r.clone(),
+                EvaluationReason::Network,
+                eval_details,
+            );
             match valid_update {
                 Some(()) => {
                     let specs_json = serde_json::to_string(&r);
                     if let Ok(specs_string) = specs_json {
                         Self::save_config_specs_to_datastore(datastore, &specs_string).await;
                     }
-                    return Some(())
+                    return Some(());
                 }
-                None => {
-                    return None
-                }
+                None => return None,
             }
         }
         None
@@ -179,11 +216,17 @@ impl StatsigStore {
     async fn fetch_and_process_configs_from_datstore(
         datastore: &dyn StatsigDatastore,
         specs: &RwLock<Specs>,
+        eval_details: &Arc<RwLock<EvalDetails>>,
     ) -> Option<()> {
         let response = Self::fetch_config_specs_from_datastore(datastore).await?;
         let configs = Self::parse_config_specs(&response);
         if let Some(WithUpdates(r)) = configs {
-            Self::set_downloaded_config_specs(specs, r);
+            Self::set_downloaded_config_specs(
+                specs,
+                r,
+                EvaluationReason::DataAdapter,
+                eval_details,
+            );
             return Some(());
         }
         None
@@ -192,6 +235,8 @@ impl StatsigStore {
     fn set_downloaded_config_specs(
         specs: &RwLock<Specs>,
         downloaded_configs: APIDownloadedConfigsWithUpdates,
+        eval_reason: EvaluationReason,
+        eval_details: &Arc<RwLock<EvalDetails>>,
     ) -> Option<()> {
         let last_sync_time = match specs.read().ok() {
             Some(t) => t.last_sync_time,
@@ -231,7 +276,11 @@ impl StatsigStore {
             new_specs.last_sync_time = downloaded_configs.time;
             mut_specs.update(new_specs);
         };
-        return Some(())
+        if let Ok(mut mut_eval_details) = eval_details.write() {
+            mut_eval_details.config_sync_time = downloaded_configs.time;
+            mut_eval_details.reason = eval_reason
+        }
+        return Some(());
     }
 
     fn parse_config_specs(text: &str) -> Option<APIDownloadedConfigsResponse> {

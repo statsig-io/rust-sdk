@@ -146,7 +146,7 @@ fn populate_experiment_fields(
         Some(layer_name) => layer_name,
         None => return,
     };
-    let layer_value = spec_store.use_spec("layer", layer_name.as_str(), |layer| {
+    let layer_value = spec_store.use_spec("layer", layer_name.as_str(), |layer, _eval_details| {
         if let Some(layer_value) = layer {
             return layer_value.default_value.clone();
         }
@@ -176,7 +176,7 @@ fn populate_layer_fields(
         return;
     }
 
-    let local_result = spec_store.use_spec("config", delegate.as_str(), |delegate_spec| {
+    let local_result = spec_store.use_spec("config", delegate.as_str(), |delegate_spec, _| {
         let mut local_result: HashMap<String, Value> = HashMap::new();
         let delegate_spec = unwrap_or_return!(delegate_spec, local_result);
         let delegate_result = eval_func(delegate_spec);

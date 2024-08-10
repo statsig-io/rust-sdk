@@ -1,9 +1,9 @@
 use chrono::Utc;
-use std::collections::HashMap;
+use std::collections::{hash_map::RandomState, HashMap};
 use std::string::ToString;
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::{StatsigEvent, StatsigUser};
 
@@ -28,17 +28,16 @@ pub(crate) fn make_gate_exposure(
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment,
 ) -> StatsigEventInternal {
+    let mut metatadata = make_metadata_for_exposure("gate", gate_name, eval_result);
+    metatadata.extend(HashMap::from([(
+        "gateValue".to_string(),
+        json!(eval_result.bool_value.to_string()),
+    )]));
+
     let event = StatsigEvent {
         event_name: "statsig::gate_exposure".to_string(),
         value: None,
-        metadata: Some(HashMap::from([
-            ("gate".to_string(), json!(gate_name)),
-            (
-                "gateValue".to_string(),
-                json!(eval_result.bool_value.to_string()),
-            ),
-            ("ruleID".to_string(), json!(eval_result.rule_id)),
-        ])),
+        metadata: Some(metatadata),
     };
 
     finalize_with_cloned_or_empty_exposures(
@@ -58,10 +57,11 @@ pub(crate) fn make_config_exposure(
     let event = StatsigEvent {
         event_name: "statsig::config_exposure".to_string(),
         value: None,
-        metadata: Some(HashMap::from([
-            ("config".to_string(), json!(config_name)),
-            ("ruleID".to_string(), json!(eval_result.rule_id)),
-        ])),
+        metadata: Some(make_metadata_for_exposure(
+            "config",
+            config_name,
+            eval_result,
+        )),
     };
 
     finalize_with_cloned_or_empty_exposures(
@@ -90,23 +90,22 @@ pub(crate) fn make_layer_exposure(
         allocated_experiment = eval_result.config_delegate.clone();
         exposures = &eval_result.secondary_exposures;
     }
-
+    let mut metadata = make_metadata_for_exposure("config", layer_name, eval_result);
+    metadata.extend(HashMap::from([
+        (
+            "allocatedExperiment".to_string(),
+            json!(allocated_experiment.unwrap_or("".to_string())),
+        ),
+        ("parameterName".to_string(), json!(parameter_name)),
+        (
+            "isExplicitParameter".to_string(),
+            json!(format!("{}", is_explicit)),
+        ),
+    ]));
     let event = StatsigEvent {
         event_name: "statsig::layer_exposure".to_string(),
         value: None,
-        metadata: Some(HashMap::from([
-            ("config".to_string(), json!(layer_name)),
-            ("ruleID".to_string(), json!(eval_result.rule_id)),
-            (
-                "allocatedExperiment".to_string(),
-                json!(allocated_experiment.unwrap_or("".to_string())),
-            ),
-            ("parameterName".to_string(), json!(parameter_name)),
-            (
-                "isExplicitParameter".to_string(),
-                json!(format!("{}", is_explicit)),
-            ),
-        ])),
+        metadata: Some(metadata),
     };
 
     finalize_with_cloned_or_empty_exposures(user, event, statsig_environment, exposures)
@@ -154,4 +153,31 @@ fn finalize_with_optional_exposures(
         time: Utc::now().timestamp_millis() as u64,
         secondary_exposures,
     }
+}
+
+fn make_metadata_for_exposure(
+    config_key: &str,
+    config_name: &str,
+    eval_result: &EvalResult,
+) -> HashMap<String, Value, RandomState> {
+    HashMap::from([
+        (config_key.to_string(), json!(config_name)),
+        ("ruleID".to_string(), json!(eval_result.rule_id)),
+        (
+            "configSyncTime".to_string(),
+            json!(eval_result.evaluation_details.config_sync_time),
+        ),
+        (
+            "reason".to_string(),
+            json!(eval_result.evaluation_details.reason),
+        ),
+        (
+            "initTime".to_string(),
+            json!(eval_result.evaluation_details.init_time),
+        ),
+        (
+            "serverTime".to_string(),
+            json!(eval_result.evaluation_details.server_time),
+        ),
+    ])
 }

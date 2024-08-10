@@ -1,6 +1,7 @@
 pub use eval_result::EvalResult;
 pub use statsig_evaluator::StatsigEvaluator;
 
+pub mod eval_details;
 pub mod specs;
 
 mod client_init_response_formatter;
