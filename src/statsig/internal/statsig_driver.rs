@@ -11,6 +11,7 @@ use crate::StatsigUser;
 use crate::{LayerLogData, StatsigEvent, StatsigOptions};
 
 use super::evaluation::StatsigEvaluator;
+use super::feature_gate::FeatureGate;
 use super::statsig_event_internal::{finalize_event, make_gate_exposure};
 use super::statsig_logger::StatsigLogger;
 use super::statsig_network::StatsigNetwork;
@@ -86,6 +87,24 @@ impl StatsigDriver {
         ));
 
         eval_result.bool_value
+    }
+
+    pub fn get_feature_gate(&self, user: &StatsigUser, gate_name: &str) -> FeatureGate {
+        let normalized_user = &self.get_normalized_user_copy(user);
+        let eval_result = self.evaluator.check_gate(normalized_user, gate_name);
+        self.logger.enqueue(make_gate_exposure(
+            normalized_user,
+            gate_name,
+            &eval_result,
+            &self.options.environment,
+        ));
+
+        FeatureGate {
+            value: eval_result.bool_value,
+            name: gate_name.to_string(),
+            rule_id: eval_result.rule_id,
+            evaluation_details: eval_result.evaluation_details
+        }
     }
 
     pub fn get_config<T: DeserializeOwned>(

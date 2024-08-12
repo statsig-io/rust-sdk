@@ -4,6 +4,7 @@ pub use layer::{Layer, LayerLogData};
 pub use statsig_driver::StatsigDriver;
 
 pub mod helpers;
+pub mod feature_gate;
 
 mod data_types;
 mod dynamic_config;
