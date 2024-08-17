@@ -17,7 +17,7 @@ pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
 use tokio::task::spawn_blocking;
 
-use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData};
+use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData, FeatureGate};
 
 mod statsig;
 
@@ -85,6 +85,10 @@ impl Statsig {
 
     pub fn check_gate(user: &StatsigUser, gate_name: &str) -> Result<bool, StatsigError> {
         Self::use_driver(|driver| Ok(driver.check_gate(user, gate_name)))
+    }
+
+    pub fn get_feature_gate(user: &StatsigUser, gate_name: &str) -> Result<FeatureGate, StatsigError> {
+        Self::use_driver(|driver| Ok(driver.get_feature_gate(user, gate_name)))
     }
 
     pub fn get_config<T: DeserializeOwned>(
