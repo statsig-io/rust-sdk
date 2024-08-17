@@ -1,5 +1,4 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use chrono::Utc;
 use serde::Serialize;
 
 #[derive(Clone, Serialize)]
@@ -12,15 +11,11 @@ pub struct EvalDetails {
 
 impl EvalDetails {
     pub fn default() -> Self {
-        let curr_time = match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(time) => time.as_secs() as u64,
-            Err(_) => 0,
-        };
         EvalDetails {
             reason: EvaluationReason::Uninitialized,
             config_sync_time: 0,
             init_time: 0,
-            server_time: curr_time,
+            server_time: Utc::now().timestamp_millis() as u64,
         }
     }
 }
