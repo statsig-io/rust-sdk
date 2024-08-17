@@ -17,7 +17,7 @@ pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
 use tokio::task::spawn_blocking;
 
-use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData, feature_gate::FeatureGate};
+use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData, FeatureGate};
 
 mod statsig;
 
