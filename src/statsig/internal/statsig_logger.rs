@@ -1,5 +1,5 @@
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use tokio::runtime::Handle;
@@ -18,7 +18,7 @@ pub struct StatsigLogger {
     flush_interval_ms: u32,
     bg_thread_handle: Option<JoinHandle<()>>,
     running_jobs: Arc<RwLock<Vec<JoinHandle<()>>>>,
-    is_shutdown: Arc<AtomicBool>
+    is_shutdown: Arc<AtomicBool>,
 }
 
 impl StatsigLogger {
@@ -35,7 +35,7 @@ impl StatsigLogger {
             flush_interval_ms: options.logger_flush_interval_ms,
             running_jobs: Arc::from(RwLock::from(vec![])),
             bg_thread_handle: None,
-            is_shutdown: Arc::new(AtomicBool::new(false))
+            is_shutdown: Arc::new(AtomicBool::new(false)),
         };
         inst.spawn_bg_thread();
         inst

@@ -1,6 +1,8 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
+use super::eval_details::{EvalDetails, EvaluationReason};
+
 pub struct EvalResult {
     pub bool_value: bool,
     pub json_value: Option<Value>,
@@ -11,6 +13,7 @@ pub struct EvalResult {
     pub explicit_parameters: Option<Vec<String>>,
     pub config_delegate: Option<String>,
     pub is_experiment_group: bool,
+    pub evaluation_details: EvalDetails,
 }
 
 impl EvalResult {
@@ -29,6 +32,24 @@ impl EvalResult {
         }
     }
 
+    pub fn unrecognized(mut eval_details: EvalDetails) -> Self {
+        eval_details.reason = EvaluationReason::Unrecognized;
+        Self {
+            rule_id: "default".to_string(),
+            evaluation_details: eval_details,
+            ..Self::default()
+        }
+    }
+
+    pub fn uninitialized(mut eval_details: EvalDetails) -> Self {
+        eval_details.reason = EvaluationReason::Uninitialized;
+        Self {
+            rule_id: "default".to_string(),
+            evaluation_details: eval_details,
+            ..Self::default()
+        }
+    }
+
     pub fn default() -> Self {
         Self {
             bool_value: false,
@@ -40,6 +61,7 @@ impl EvalResult {
             explicit_parameters: None,
             config_delegate: None,
             is_experiment_group: false,
+            evaluation_details: EvalDetails::default(),
         }
     }
 }

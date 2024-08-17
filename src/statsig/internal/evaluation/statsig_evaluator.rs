@@ -14,6 +14,7 @@ use crate::{unwrap_or_return, StatsigOptions, StatsigUser};
 use super::super::data_types::{APICondition, APIRule, APISpec};
 use super::super::statsig_store::StatsigStore;
 use super::country_lookup::CountryLookup;
+use super::eval_details::{EvalDetails, EvaluationReason};
 use super::eval_helpers::{
     compare_numbers, compare_strings_in_array, compare_versions, compute_user_hash,
 };
@@ -50,7 +51,9 @@ impl StatsigEvaluator {
 
     pub fn get_client_initialize_response(&self, user: &StatsigUser) -> Value {
         ClientInitResponseFormatter::get_formatted_response(
-            |user: &StatsigUser, spec: &APISpec| self.eval_spec(user, Some(spec)),
+            |user: &StatsigUser, spec: &APISpec| {
+                self.eval_spec(user, Some(spec), self.spec_store.get_eval_details())
+            },
             user,
             &self.spec_store,
         )
@@ -58,29 +61,46 @@ impl StatsigEvaluator {
 
     fn eval(&self, user: &StatsigUser, spec_name: &str, spec_type: &str) -> EvalResult {
         self.spec_store
-            .use_spec(spec_type, spec_name, |spec| self.eval_spec(user, spec))
+            .use_spec(spec_type, spec_name, |spec, eval_details| {
+                self.eval_spec(user, spec, eval_details)
+            })
     }
 
-    fn eval_spec(&self, user: &StatsigUser, spec: Option<&APISpec>) -> EvalResult {
-        let spec = match spec {
+    fn eval_spec(
+        &self,
+        user: &StatsigUser,
+        spec: Option<&APISpec>,
+        eval_details: EvalDetails,
+    ) -> EvalResult {
+        let spec: &APISpec = match spec {
             Some(spec) => spec,
-            _ => return EvalResult::default(),
+            None =>  {
+                if eval_details.reason != EvaluationReason::Uninitialized {
+                    return EvalResult::unrecognized(eval_details)
+                } else {
+                    return EvalResult::uninitialized(eval_details)
+                }
+            }
         };
 
         if !spec.enabled {
             return EvalResult {
                 json_value: Some(spec.default_value.clone()),
                 rule_id: "disabled".to_string(),
+                evaluation_details: eval_details,
                 ..EvalResult::default()
             };
         }
 
         let mut exposures: Vec<HashMap<String, String>> = vec![];
-
+        let cloned_eval_detail = eval_details.clone();
         for rule in spec.rules.iter() {
-            let result = self.eval_rule(user, rule);
+            let mut result = self.eval_rule(user, rule);
 
             if result.unsupported {
+                let mut override_details: EvalDetails = self.spec_store.get_eval_details();
+                override_details.reason = EvaluationReason::Unsupported;
+                result.evaluation_details = override_details;
                 return result;
             }
 
@@ -107,6 +127,7 @@ impl StatsigEvaluator {
                 secondary_exposures: Some(exposures.clone()),
                 undelegated_secondary_exposures: Some(exposures),
                 is_experiment_group: result.is_experiment_group,
+                evaluation_details: eval_details,
                 ..EvalResult::default()
             };
         }
@@ -116,6 +137,7 @@ impl StatsigEvaluator {
             rule_id: "default".to_string(),
             secondary_exposures: Some(exposures.clone()),
             undelegated_secondary_exposures: Some(exposures),
+            evaluation_details: cloned_eval_detail,
             ..EvalResult::default()
         }
     }
@@ -156,26 +178,27 @@ impl StatsigEvaluator {
         exposures: &[HashMap<String, String>],
     ) -> Option<EvalResult> {
         let delegate = unwrap_or_return!(&rule.config_delegate, None);
-        self.spec_store.use_spec("config", delegate, |spec| {
-            let mut result = self.eval_spec(user, spec);
-            if result.unsupported {
-                return Some(result);
-            }
+        self.spec_store
+            .use_spec("config", delegate, |spec, eval_details| {
+                let mut result = self.eval_spec(user, spec, eval_details);
+                if result.unsupported {
+                    return Some(result);
+                }
 
-            let undel_sec_expo = exposures.to_owned();
-            let mut sec_expo = exposures.to_owned();
-            if let Some(mut result_exposures) = result.secondary_exposures {
-                sec_expo.append(&mut result_exposures);
-            }
+                let undel_sec_expo = exposures.to_owned();
+                let mut sec_expo = exposures.to_owned();
+                if let Some(mut result_exposures) = result.secondary_exposures {
+                    sec_expo.append(&mut result_exposures);
+                }
 
-            let spec = unwrap_or_return!(spec, None);
+                let spec = unwrap_or_return!(spec, None);
 
-            result.explicit_parameters = spec.explicit_parameters.clone();
-            result.secondary_exposures = Some(sec_expo);
-            result.undelegated_secondary_exposures = Some(undel_sec_expo);
-            result.config_delegate = Some(delegate.clone());
-            Some(result)
-        })
+                result.explicit_parameters = spec.explicit_parameters.clone();
+                result.secondary_exposures = Some(sec_expo);
+                result.undelegated_secondary_exposures = Some(undel_sec_expo);
+                result.config_delegate = Some(delegate.clone());
+                Some(result)
+            })
     }
 
     fn eval_condition(&self, user: &StatsigUser, condition: &APICondition) -> EvalResult {
