@@ -4,9 +4,12 @@ use serde::de::DeserializeOwned;
 use serde_json::{from_value, Value};
 use std::collections::HashMap;
 
+use super::evaluation::eval_details::EvalDetails;
+
 pub struct Layer {
     pub name: String,
     pub rule_id: String,
+    pub evaluation_details: EvalDetails,
 
     pub(crate) value: HashMap<String, Value>,
     pub(crate) log_data: LayerLogData,

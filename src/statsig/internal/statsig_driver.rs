@@ -135,6 +135,7 @@ impl StatsigDriver {
                 None => None,
             },
             rule_id: eval_result.rule_id,
+            evaluation_details: eval_result.evaluation_details
         }
     }
 
@@ -148,10 +149,11 @@ impl StatsigDriver {
                 value = deserialized;
             }
         }
-
+        let eval_details_copy = eval_result.evaluation_details.clone();
         Layer {
             name: layer_name.to_string(),
             value,
+            evaluation_details: eval_details_copy,
             rule_id: eval_result.rule_id.clone(),
             log_data: LayerLogData {
                 user: normalized_user,
