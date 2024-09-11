@@ -1,5 +1,7 @@
 pub use dynamic_config::DynamicConfig;
 pub use evaluation::EvalResult;
+pub use evaluation::EvalDetails;
+pub use evaluation::EvaluationReason;
 pub use feature_gate::FeatureGate;
 pub use layer::{Layer, LayerLogData};
 pub use statsig_driver::StatsigDriver;

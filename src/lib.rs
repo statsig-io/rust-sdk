@@ -15,9 +15,11 @@ pub use statsig::statsig_datastore::StatsigDatastore;
 pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
+pub use statsig::internal::{DynamicConfig, FeatureGate, Layer};
+pub use crate::statsig::internal::{EvalDetails, EvaluationReason};
 use tokio::task::spawn_blocking;
 
-use crate::statsig::internal::{DynamicConfig, Layer, LayerLogData, FeatureGate};
+use crate::statsig::internal::LayerLogData;
 
 mod statsig;
 

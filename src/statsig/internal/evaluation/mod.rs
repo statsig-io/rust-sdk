@@ -1,4 +1,6 @@
 pub use eval_result::EvalResult;
+pub use eval_details::EvalDetails;
+pub use eval_details::EvaluationReason;
 pub use statsig_evaluator::StatsigEvaluator;
 
 pub mod eval_details;
