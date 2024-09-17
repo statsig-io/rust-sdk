@@ -128,6 +128,7 @@ impl StatsigEvaluator {
                 undelegated_secondary_exposures: Some(exposures),
                 is_experiment_group: result.is_experiment_group,
                 evaluation_details: eval_details,
+                group_name: rule.group_name.clone(),
                 ..EvalResult::default()
             };
         }

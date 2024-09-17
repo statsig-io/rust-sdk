@@ -50,6 +50,9 @@ impl ClientInitResponseFormatter {
                         "is_device_based".into(),
                         json!(spec.id_type.to_lowercase() == "stableid"),
                     );
+                    if !eval_result.group_name.is_none() {
+                        result.insert("group_name".into(), json!(eval_result.group_name));
+                    }
 
                     match spec.entity.as_str() {
                         "experiment" => {
