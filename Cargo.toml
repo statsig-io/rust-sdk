@@ -1,6 +1,6 @@
 [package]
 name = "statsig"
-version = "1.2.0"
+version = "1.3.0"
 description = "Statsig Rust SDK for usage in multi-user server environments."
 keywords = ["gate", "flag", "ci", "test", "experiment"]
 categories = ["api-bindings", "development-tools", "web-programming", "config"]
