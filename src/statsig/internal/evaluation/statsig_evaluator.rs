@@ -280,6 +280,13 @@ impl StatsigEvaluator {
     }
 
     fn eval_pass_percentage(&self, user: &StatsigUser, rule: &APIRule, spec_salt: &String) -> bool {
+        if rule.pass_percentage == 100f64 {
+            return true;
+        }
+        if rule.pass_percentage == 0f64 {
+            return false;
+        }
+        
         let rule_salt = rule.salt.as_ref().unwrap_or(&rule.id);
         let unit_id = user.get_unit_id(&rule.id_type).unwrap_or("".to_string());
         match compute_user_hash(format!("{}.{}.{}", spec_salt, rule_salt, unit_id)) {
