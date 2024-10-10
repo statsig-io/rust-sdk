@@ -30,7 +30,7 @@ mod statsig;
 lazy_static! {
     static ref DRIVER: Arc<RwLock<Option<StatsigDriver>>> = Arc::from(RwLock::from(None));
     static ref STATSIG_INIT_NOTIFY: Arc<Notify> = Arc::new(Notify::new());
-    static ref STATSIG_INIT_NOTIFY_FUTURE: Shared<Notified<'static>> =
+    static ref STATSIG_INIT_NOTIFIED_FUTURE: Shared<Notified<'static>> =
         STATSIG_INIT_NOTIFY.notified().shared();
 }
 
@@ -80,7 +80,7 @@ impl Statsig {
     }
 
     pub fn wait_for_initialization() -> Shared<Notified<'static>> {
-        STATSIG_INIT_NOTIFY_FUTURE.clone()
+        STATSIG_INIT_NOTIFIED_FUTURE.clone()
     }
 
     pub async fn shutdown() -> Option<StatsigError> {
