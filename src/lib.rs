@@ -11,14 +11,14 @@ use statsig::internal::StatsigDriver;
 use statsig::statsig_error::StatsigError;
 //
 // re-export public objects to top level
-pub use crate::statsig::internal::{EvalDetails, EvaluationReason};
-use futures::future::Shared;
-use futures::FutureExt;
-pub use statsig::internal::{DynamicConfig, FeatureGate, Layer};
 pub use statsig::statsig_datastore::StatsigDatastore;
 pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
+pub use statsig::internal::{DynamicConfig, FeatureGate, Layer};
+pub use crate::statsig::internal::{EvalDetails, EvaluationReason};
+use futures::future::Shared;
+use futures::FutureExt;
 use tokio::sync::futures::Notified;
 use tokio::sync::Notify;
 use tokio::task::spawn_blocking;
@@ -107,10 +107,7 @@ impl Statsig {
         Self::use_driver(|driver| Ok(driver.check_gate(user, gate_name)))
     }
 
-    pub fn get_feature_gate(
-        user: &StatsigUser,
-        gate_name: &str,
-    ) -> Result<FeatureGate, StatsigError> {
+    pub fn get_feature_gate(user: &StatsigUser, gate_name: &str) -> Result<FeatureGate, StatsigError> {
         Self::use_driver(|driver| Ok(driver.get_feature_gate(user, gate_name)))
     }
 
