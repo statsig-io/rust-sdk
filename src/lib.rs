@@ -11,12 +11,16 @@ use statsig::internal::StatsigDriver;
 use statsig::statsig_error::StatsigError;
 //
 // re-export public objects to top level
+pub use crate::statsig::internal::{EvalDetails, EvaluationReason};
+use futures::future::Shared;
+use futures::FutureExt;
+pub use statsig::internal::{DynamicConfig, FeatureGate, Layer};
 pub use statsig::statsig_datastore::StatsigDatastore;
 pub use statsig::statsig_event::StatsigEvent;
 pub use statsig::statsig_options::StatsigOptions;
 pub use statsig::statsig_user::StatsigUser;
-pub use statsig::internal::{DynamicConfig, FeatureGate, Layer};
-pub use crate::statsig::internal::{EvalDetails, EvaluationReason};
+use tokio::sync::futures::Notified;
+use tokio::sync::Notify;
 use tokio::task::spawn_blocking;
 
 use crate::statsig::internal::LayerLogData;
@@ -25,6 +29,9 @@ mod statsig;
 
 lazy_static! {
     static ref DRIVER: Arc<RwLock<Option<StatsigDriver>>> = Arc::from(RwLock::from(None));
+    static ref STATSIG_INIT_NOTIFY: Arc<Notify> = Arc::new(Notify::new());
+    static ref STATSIG_INIT_NOTIFY_FUTURE: Shared<Notified<'static>> =
+        STATSIG_INIT_NOTIFY.notified().shared();
 }
 
 pub struct Statsig {}
@@ -62,7 +69,18 @@ impl Statsig {
         );
 
         *write_guard = Some(driver);
+
+        STATSIG_INIT_NOTIFY.notify_waiters();
+
         None
+    }
+
+    pub fn is_initialized() -> bool {
+        DRIVER.read().map_or(false, |guard| guard.is_some())
+    }
+
+    pub fn wait_for_initialization() -> Shared<Notified<'static>> {
+        STATSIG_INIT_NOTIFY_FUTURE.clone()
     }
 
     pub async fn shutdown() -> Option<StatsigError> {
@@ -89,7 +107,10 @@ impl Statsig {
         Self::use_driver(|driver| Ok(driver.check_gate(user, gate_name)))
     }
 
-    pub fn get_feature_gate(user: &StatsigUser, gate_name: &str) -> Result<FeatureGate, StatsigError> {
+    pub fn get_feature_gate(
+        user: &StatsigUser,
+        gate_name: &str,
+    ) -> Result<FeatureGate, StatsigError> {
         Self::use_driver(|driver| Ok(driver.get_feature_gate(user, gate_name)))
     }
 
