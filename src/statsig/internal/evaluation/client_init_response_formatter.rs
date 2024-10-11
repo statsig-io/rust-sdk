@@ -41,6 +41,7 @@ impl ClientInitResponseFormatter {
                         return None;
                     }
                     result.insert("value".into(), json!(eval_result.bool_value));
+                    result.insert("id_type".into(), json!(spec.id_type));
                 }
 
                 "dynamic_config" => {
@@ -52,6 +53,9 @@ impl ClientInitResponseFormatter {
                     );
                     if !eval_result.group_name.is_none() {
                         result.insert("group_name".into(), json!(eval_result.group_name));
+                    }
+                    if spec.entity.as_str() != "layer" {
+                        result.insert("id_type".into(), json!(spec.id_type));
                     }
 
                     match spec.entity.as_str() {
