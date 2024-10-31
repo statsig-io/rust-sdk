@@ -88,6 +88,7 @@ impl StatsigEvaluator {
                 json_value: Some(spec.default_value.clone()),
                 rule_id: "disabled".to_string(),
                 evaluation_details: eval_details,
+                config_version: spec.version,
                 ..EvalResult::default()
             };
         }
@@ -101,6 +102,7 @@ impl StatsigEvaluator {
                 let mut override_details: EvalDetails = self.spec_store.get_eval_details();
                 override_details.reason = EvaluationReason::Unsupported;
                 result.evaluation_details = override_details;
+                result.config_version = spec.version;
                 return result;
             }
 
@@ -129,6 +131,7 @@ impl StatsigEvaluator {
                 is_experiment_group: result.is_experiment_group,
                 evaluation_details: eval_details,
                 group_name: rule.group_name.clone(),
+                config_version: spec.version,
                 ..EvalResult::default()
             };
         }
@@ -139,6 +142,7 @@ impl StatsigEvaluator {
             secondary_exposures: Some(exposures.clone()),
             undelegated_secondary_exposures: Some(exposures),
             evaluation_details: cloned_eval_detail,
+            config_version: spec.version,
             ..EvalResult::default()
         }
     }
