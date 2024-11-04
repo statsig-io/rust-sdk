@@ -28,16 +28,21 @@ pub(crate) fn make_gate_exposure(
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment,
 ) -> StatsigEventInternal {
-    let mut metatadata = make_metadata_for_exposure("gate", gate_name, eval_result);
-    metatadata.extend(HashMap::from([(
+    let mut metadata = make_metadata_for_exposure("gate", gate_name, eval_result);
+    metadata.extend(HashMap::from([(
         "gateValue".to_string(),
         json!(eval_result.bool_value.to_string()),
     )]));
-
+    if eval_result.config_version != None {
+        metadata.extend(HashMap::from([(
+            "configVersion".to_string(),
+            json!(eval_result.config_version.unwrap().to_string()),
+        )]));
+    }
     let event = StatsigEvent {
         event_name: "statsig::gate_exposure".to_string(),
         value: None,
-        metadata: Some(metatadata),
+        metadata: Some(metadata),
     };
 
     finalize_with_cloned_or_empty_exposures(
@@ -54,14 +59,25 @@ pub(crate) fn make_config_exposure(
     eval_result: &EvalResult,
     statsig_environment: &StatsigEnvironment,
 ) -> StatsigEventInternal {
+    let mut metadata = make_metadata_for_exposure(
+        "config",
+        config_name,
+        eval_result,
+    );
+    metadata.extend(HashMap::from([(
+        "rulePassed".to_string(),
+        json!(eval_result.bool_value.to_string()),
+    )]));
+    if eval_result.config_version != None {
+        metadata.extend(HashMap::from([(
+            "configVersion".to_string(),
+            json!(eval_result.config_version.unwrap().to_string()),
+        )]));
+    }
     let event = StatsigEvent {
         event_name: "statsig::config_exposure".to_string(),
         value: None,
-        metadata: Some(make_metadata_for_exposure(
-            "config",
-            config_name,
-            eval_result,
-        )),
+        metadata: Some(metadata),
     };
 
     finalize_with_cloned_or_empty_exposures(
@@ -102,6 +118,12 @@ pub(crate) fn make_layer_exposure(
             json!(format!("{}", is_explicit)),
         ),
     ]));
+    if eval_result.config_version != None {
+        metadata.extend(HashMap::from([(
+            "configVersion".to_string(),
+            json!(eval_result.config_version.unwrap().to_string()),
+        )]));
+    }
     let event = StatsigEvent {
         event_name: "statsig::layer_exposure".to_string(),
         value: None,

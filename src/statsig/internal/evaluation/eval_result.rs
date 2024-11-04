@@ -15,6 +15,7 @@ pub struct EvalResult {
     pub is_experiment_group: bool,
     pub evaluation_details: EvalDetails,
     pub group_name: Option<String>,
+    pub config_version: Option<i64>,
 }
 
 impl EvalResult {
@@ -64,6 +65,7 @@ impl EvalResult {
             is_experiment_group: false,
             evaluation_details: EvalDetails::default(),
             group_name: None,
+            config_version: None,
         }
     }
 }

@@ -17,6 +17,7 @@ pub struct APISpec {
     pub entity: String,
     pub has_shared_params: Option<bool>,
     pub is_active: Option<bool>,
+    pub version: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
