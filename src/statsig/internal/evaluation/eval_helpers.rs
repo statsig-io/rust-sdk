@@ -133,8 +133,10 @@ pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
 
 pub fn compare_time(left: &Value, right: &Value, op: &str) -> Option<bool> {
     let raw_left = value_to_i64(left)?;
+    let raw_right = value_to_i64(right)?;
+    
     let left_num = to_millis(raw_left);
-    let right_num = value_to_i64(right)?;
+    let right_num = to_millis(raw_right);
 
     match op {
         "before" => Some(left_num < right_num),
@@ -155,10 +157,39 @@ pub fn value_to_f64(value: &Value) -> Option<f64> {
     }
 }
 
-pub fn value_to_i64(value: &Value) -> Option<i64> {
+// pub fn value_to_i64(value: &Value) -> Option<i64> {
+//     match value {
+//         Value::Number(n) => n.as_i64(),
+//         Value::String(s) => s.parse().ok(),
+//         _ => None,
+//     }
+// }
+fn value_to_i64(value: &Value) -> Option<i64> {
     match value {
-        Value::Number(n) => n.as_i64(),
-        Value::String(s) => s.parse().ok(),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Some(i)
+            } else if let Some(u) = n.as_u64() {
+                i64::try_from(u).ok()
+            } else if let Some(f) = n.as_f64() {
+                // accept only exact integers to avoid surprise truncation
+                let i = f as i64;
+                if (i as f64) == f && f.is_finite() { Some(i) } else { None }
+            } else {
+                None
+            }
+        }
+        Value::String(s) => {
+            let t = s.trim();
+            if let Ok(i) = t.parse::<i64>() {
+                Some(i)
+            } else if let Ok(f) = t.parse::<f64>() {
+                let i = f as i64;
+                if (i as f64) == f && f.is_finite() { Some(i) } else { None }
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
