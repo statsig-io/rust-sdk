@@ -133,10 +133,8 @@ pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
 
 pub fn compare_time(left: &Value, right: &Value, op: &str) -> Option<bool> {
     let raw_left = value_to_i64(left)?;
-    let raw_right = value_to_i64(right)?;
-
     let left_num = to_millis(raw_left);
-    let right_num = to_millis(raw_right);
+    let right_num = value_to_i64(right)?;
 
     match op {
         "before" => Some(left_num < right_num),
