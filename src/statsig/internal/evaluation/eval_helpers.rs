@@ -132,8 +132,11 @@ pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
 }
 
 pub fn compare_time(left: &Value, right: &Value, op: &str) -> Option<bool> {
-    let left_num = value_to_i64(left)?;
-    let right_num = value_to_i64(right)?;
+    let raw_left = value_to_i64(left)?;
+    let raw_right = value_to_i64(right)?;
+
+    let left_num = to_millis(raw_left);
+    let right_num = to_millis(raw_right);
 
     match op {
         "before" => Some(left_num < right_num),
@@ -168,3 +171,14 @@ pub fn value_to_string(value: &Value) -> Option<String> {
         _ => Some(format!("{}", value)),
     }
 }
+
+fn to_millis(ts: i64) -> i64 {
+    // < 1e10 = definitely seconds
+    if ts.abs() < 10_000_000_000 {
+        // If it's in seconds, scale up to ms
+        ts.saturating_mul(1000)
+    } else {
+        ts
+    }
+}
+
