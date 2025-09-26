@@ -178,12 +178,10 @@ pub fn value_to_string(value: &Value) -> Option<String> {
 
 fn to_millis(ts: i64) -> i64 {
     let a = ts.abs();
-    if a >= MS_BOUND { return ts; }     
-    if a <  SEC_BOUND { return ts.saturating_mul(1000); }  
-    if a < SEC_2600 {
-        ts.saturating_mul(1000) 
-    } else {
-        ts                       
+    if a >= 1_000_000_000_000 {        
+        ts
+    } else {     
+        ts.saturating_mul(1000)
     }
 }
 
