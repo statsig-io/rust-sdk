@@ -8,10 +8,6 @@ use sha2::{Digest, Sha256};
 
 use crate::statsig::internal::helpers::UsizeExt;
 
-const SEC_BOUND: i64 = 10_000_000_000;        // (<=2286)
-const MS_BOUND:  i64 = 1_000_000_000_000;     // (>=2001-09-09)
-const SEC_2600:  i64 = 19_880_899_200;  
-
 pub fn compute_user_hash(value: String) -> Option<usize> {
     let mut sha256 = Sha256::new();
     sha256.update(value.as_str().as_bytes());
@@ -137,10 +133,9 @@ pub fn compare_str_with_regex(value: &Value, regex_value: &Value) -> bool {
 
 pub fn compare_time(left: &Value, right: &Value, op: &str) -> Option<bool> {
     let raw_left = value_to_i64(left)?;
-    let raw_right = value_to_i64(right)?;
+    let right_num = value_to_i64(right)?;
     
     let left_num = to_millis(raw_left);
-    let right_num = to_millis(raw_right);
 
     match op {
         "before" => Some(left_num < right_num),
@@ -178,10 +173,10 @@ pub fn value_to_string(value: &Value) -> Option<String> {
 
 fn to_millis(ts: i64) -> i64 {
     let a = ts.abs();
-    if a >= 1_000_000_000_000 {        
-        ts
+    if a < 10_000_000_000 {        
+        ts * 1000
     } else {     
-        ts.saturating_mul(1000)
+        ts
     }
 }
 
