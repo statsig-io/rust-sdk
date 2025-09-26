@@ -8,6 +8,10 @@ use sha2::{Digest, Sha256};
 
 use crate::statsig::internal::helpers::UsizeExt;
 
+const SEC_BOUND: i64 = 10_000_000_000;        // (<=2286)
+const MS_BOUND:  i64 = 1_000_000_000_000;     // (>=2001-09-09)
+const SEC_2600:  i64 = 19_880_899_200;  
+
 pub fn compute_user_hash(value: String) -> Option<usize> {
     let mut sha256 = Sha256::new();
     sha256.update(value.as_str().as_bytes());
@@ -157,39 +161,10 @@ pub fn value_to_f64(value: &Value) -> Option<f64> {
     }
 }
 
-// pub fn value_to_i64(value: &Value) -> Option<i64> {
-//     match value {
-//         Value::Number(n) => n.as_i64(),
-//         Value::String(s) => s.parse().ok(),
-//         _ => None,
-//     }
-// }
-fn value_to_i64(value: &Value) -> Option<i64> {
+pub fn value_to_i64(value: &Value) -> Option<i64> {
     match value {
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Some(i)
-            } else if let Some(u) = n.as_u64() {
-                i64::try_from(u).ok()
-            } else if let Some(f) = n.as_f64() {
-                // accept only exact integers to avoid surprise truncation
-                let i = f as i64;
-                if (i as f64) == f && f.is_finite() { Some(i) } else { None }
-            } else {
-                None
-            }
-        }
-        Value::String(s) => {
-            let t = s.trim();
-            if let Ok(i) = t.parse::<i64>() {
-                Some(i)
-            } else if let Ok(f) = t.parse::<f64>() {
-                let i = f as i64;
-                if (i as f64) == f && f.is_finite() { Some(i) } else { None }
-            } else {
-                None
-            }
-        }
+        Value::Number(n) => n.as_i64(),
+        Value::String(s) => s.parse().ok(),
         _ => None,
     }
 }
@@ -202,12 +177,13 @@ pub fn value_to_string(value: &Value) -> Option<String> {
 }
 
 fn to_millis(ts: i64) -> i64 {
-    // < 1e10 = definitely seconds
-    if ts.abs() < 10_000_000_000 {
-        // If it's in seconds, scale up to ms
-        ts.saturating_mul(1000)
+    let a = ts.abs();
+    if a >= MS_BOUND { return ts; }     
+    if a <  SEC_BOUND { return ts.saturating_mul(1000); }  
+    if a < SEC_2600 {
+        ts.saturating_mul(1000) 
     } else {
-        ts
+        ts                       
     }
 }
 
